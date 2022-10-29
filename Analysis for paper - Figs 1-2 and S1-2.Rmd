@@ -69,6 +69,10 @@ half_panel<-subset(data, data$screen=="GDSC010")
 length(unique(half_panel$CELL_LINE_NAME))
 length(unique(half_panel$combo_id))
 
+#Counting number of instances where Bliss window is positive and Bliss matrix is negative
+nrow(data[(data$Bliss_window > 0 & data$Bliss_matrix<0),])
+43967/84055
+
 
 #Making table of cell lines
 cell_lines<-select(data, CELL_LINE_NAME, COSMIC_ID, SIDM, TISSUE, CANCER_TYPE)
@@ -204,7 +208,7 @@ colnames(overall_combo_maxE)[1]<-"COSMIC_ID"
 write.csv(overall_combo_maxE, "Biomarker_inputs/Sand1-GDSC010_Combo_MaxE_matrix.csv", row.names = FALSE)
 ```
 
-##Figure 1C
+##Figure 1D
 ```{r}
 heatmap<-read.csv("Biomarker_inputs/Sand1-GDSC010_Combo_MaxE_matrix.csv")
 rnames <- heatmap[,1]
@@ -276,7 +280,7 @@ plot(data_scatter$Single_agent_Emax, data_scatter$combo_MaxE, xlab="Single agent
 
 ```
 
-##Figure S1G
+##Figure 1C
 ```{r}
 data_S1G<-select(data, lib1_ID, lib1_pathway, lib2_ID, lib2_pathway)
 #Identify distinct drug combinations
@@ -303,20 +307,20 @@ ggplot(a, aes(lib1_pathway, lib2_pathway)) + geom_point(aes(size=Frequency))+ th
 a
 ```
 
-##Figure S1H
+##Figure S1G
 ```{r}
 plot(data_scatter$Bliss_matrix, data_scatter$combo_MaxE, xlab="Bliss excess", ylab="Combo Emax", pch=20)
 abline(v = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
 ```
 
-##Figure S1I
+##Figure S1H
 ```{r}
 plot(data_scatter$HSA_matrix, data_scatter$combo_MaxE, xlab="HSA excess", ylab="Combo Emax", pch=20)
 abline(v = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
 
 ```
 
-##Figure S1J
+##Figure S1I
 ```{r}
 plot(data_scatter$Bliss_matrix, data_scatter$HSA_matrix, xlab="Bliss excess", ylab="HSA excess", pch=20)
 abline(h = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
@@ -324,13 +328,13 @@ abline(v = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
 cor(data_scatter$Bliss_matrix, data_scatter$HSA_matrix)
 ```
 
-##Figure S1K
+##Figure S1J
 ```{r}
 plot(data_scatter$Single_agent_Emax, data_scatter$Bliss_matrix, xlab="Single agent Emax", ylab="Bliss excess", pch=20)
 abline(h = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
 ```
 
-##Figure S1L
+##Figure S1K
 ```{r}
 a<-read.csv("Input/plate_qc_Sandpiper-01_13May22.csv")
 b<-read.csv("Input/plate_qc_Sandpiper-02_13May22.csv")
@@ -347,7 +351,7 @@ p
 median(data_S1L$CV_NC1)
 range(data_S1L$CV_NC1)
 ```
-##Figure S1M
+##Figure S1L
 ```{r}
 data_S1L_1<-data_S1L$Z_NC1_PC1
 data_S1L_2<-data_S1L$Z_NC1_PC2
@@ -378,7 +382,7 @@ max(pos$Value) - min(pos$Value)
 ```
 
 
-##Figure S1N
+##Figure S1M
 ```{r}
 library(ggplot2)
 library(dplyr)
@@ -528,7 +532,7 @@ P_QC_Correlations.key.metrics
 
 
 
-pdf("S1N_BioReps_Corr of metrics_All data.pdf",
+pdf("S1M_BioReps_Corr of metrics_All data.pdf",
     width = 4, height = 3)
 print(P_QC_Correlations.key.metrics)
 dev.off()
@@ -578,12 +582,1445 @@ p
 #dev.off()
 ```
 
-## Figure 2D - Marta's plots
+## Figure 2D onwards 
 ```{r}
+full_data<- read.csv("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_biomarkers_with_combo_categories_200622.csv", header = TRUE) 
+
+full_data1<- read.csv("~/OneDrive - AZCollaboration/Projects/Sanger_Data/All_biomarkers_with_combo_categories_200622.csv", header = TRUE) 
+
+
+#eliminating all combos with no emergent biomarkers
+
+full_data<-full_data[!is.na(full_data$DRUG_ID),]
+
+```
+
+Identify the groups of covariates that are specified in the above general categoies. This is to create groups within categories.
+
+```{r}
+ii<-which(full_data$Cancer_type =="All" & full_data$Genotype == "All", arr.ind = TRUE)
+full_data$Cancer_type[ii]<-"All-pancancer"
+full_data$Genotype[ii]<-"All-pancancer"
+
+iii<-which(full_data$Cancer_type =="All", arr.ind = TRUE)
+full_data$Cancer_type[iii]<-"All-molecular baskets"
+
+
+ftype<-unique(full_data$Features) # biomarker types -- biomarkers captured in FEATURE
+ctype<-unique(full_data$Cancer_type) # cancer types and pancancer 
+gtype<-unique(full_data$Genotype) # molecular basket and pancancer
+catDrug<-unique(full_data$Category_New) # drug category
+```
+
+The data contains the following subset of Feature:
+
+```{r}
+ftype
+```
+
+the following subset of cancer type:
+
+```{r}
+ctype
+```
+Where "All" is pancancer
+and the following genotype of cell lines:
+
+```{r}
+gtype
+catDrug
+```
+
+where *All* includes all genotype considered.
+
+Visulisation of the numnber cell lines that have harboured at least one of the features selected, distributed according to these dfferent categories. 
+
+```{r}
+library(ggplot2)
+library(cowplot)
+library(dplyr)
+
+library(ggpubr)
+library(colorspace)
+
+library(tidyverse)
+library(gprofiler2)
+library(tibble)
+library(reshape2)
+
+library(pheatmap)
+
+cal_z_score <- function(x){
+  (x - mean(x)) / sd(x)
+}
 
 
 ```
 
+
+```{r}
+## preparing data structure
+plot_ftype<-data.frame(full_data$N_FEATURE_pos, 
+                       full_data$FEATURE_IC50_effect_size,
+                       full_data$Features, 
+                       full_data$Cancer_type,
+                       full_data$Genotype,
+                       full_data$Category_New)
+colnames(plot_ftype)<-c("NumberCL_Present",
+                        "IC50_Effect_Size",
+                        "Feature_Type", 
+                        "Cancer_Type",
+                        "Genotype",
+                        "Drug_Category")
+
+
+## Eliminating "All" and "All-pancancer" from tissue types
+# since they are not indformtive
+temp<-plot_ftype[plot_ftype$Cancer_Type !="All",]
+temp<-temp[temp$Cancer_Type !="All-pancancer",]
+#temp<-temp[temp$Cancer_Type !="All-molecular baskets",]
+
+plot_ftype<-temp
+
+max_effect<-round(max(full_data$FEATURE_IC50_effect_size))
+
+
+```
+
+### Comparing biomarkes types over number of cell lines in which they have been detected.
+
+```{r}
+# preparing summaries for plotting barchart for Number of cell lines
+maxCL<- 
+  plot_ftype %>%
+  group_by(Feature_Type) %>%
+  summarise(grp.mean=mean(NumberCL_Present),
+            se=sd(NumberCL_Present)/sqrt(n()))
+maxCL$se[is.na(maxCL$se)]<-0
+
+# building the plot
+ggplot_ftype<-ggplot(maxCL, aes(x=Feature_Type, y = grp.mean,
+                               ymin=grp.mean-se,
+                               ymax= grp.mean+se,
+                                    fill= Feature_Type))+
+  geom_col(width=0.7)+
+  geom_errorbar(width=0.25)+
+  labs(x= " Biomarkers Type", y = " Average Number of Cell Lines", 
+       fill = "Biomarkers Type")+
+  theme(text = element_text(size=12),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1),
+       legend.position = "right")
+
+ggplot_ftype
+
+
+maxBN<- 
+  plot_ftype %>%
+  group_by(Feature_Type) %>%
+  summarise(grp.count=length(Feature_Type))
+maxBN$grp.count[is.na(maxBN$grp.count)]<-0
+
+
+# building the plot for counting the biomarkers
+ggplot_btype<-ggplot(maxBN, aes(x=Feature_Type, y = grp.count, fill= Feature_Type))+
+  geom_col(width=0.7)+
+  labs(x= " Biomarkers Type", y = " Number of Biomarkers", 
+       fill = "Biomarkers Type")+
+  theme(text = element_text(size=12),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1),
+       legend.position = "right")
+
+ggplot_btype
+maxBN
+```
+
+```{r}
+# Preparing summaries to plot IC50 by groups
+
+# plotting IC50 by grouos
+IC50es<- 
+  plot_ftype %>%
+  group_by(Feature_Type) %>%
+  summarise(grp.mean=mean(IC50_Effect_Size),
+            se=sd(IC50_Effect_Size)/sqrt(n()))
+
+ggplot_ftypeIC50<-ggplot(IC50es, aes(x=Feature_Type, y = grp.mean,
+                               ymin=grp.mean-se,
+                               ymax= grp.mean+se,
+                               fill= Feature_Type))+
+  ylim(0,max_effect)+
+  geom_col(width=0.7)+
+  geom_errorbar(width=0.25)+
+  labs(x= " Biomarkers Type", y = " Average Y score", 
+       fill = "Biomarkers Type")+
+  theme(text = element_text(size=12),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1),
+       legend.position = "right")
+
+
+ggplot_ftypeIC50
+
+
+##using box plots
+plot_ftype %>% tidyr::gather("id", "value",2) %>% 
+ggplot(.,aes(x=Feature_Type, y=value, color= Feature_Type, fill=after_scale(desaturate(lighten(color, .6), .6)), shape=Feature_Type))+
+  geom_boxplot(alpha = 0.80, outlier.shape=NA) + 
+  ylim(0,5)+
+  geom_jitter(width = .3, aes(fill=Feature_Type), shape = 21, color = "black")+ 
+  labs(x=" Biomarkers Type", y= 'Input - Effect Size ') +
+  theme(text = element_text(size=12),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1),
+       legend.position = "right") +
+  facet_wrap(~id)
+
+```
+
+
+From this first visualisation it is possible to see that although the *mutation -AZ* biomarker caries the largest effect size, it also has the largest standard error, which is an indicatore of low precision. The *mutation - Sanger* is better in precision but with less potency that *CNA- AZ* which has the over better IC50 effect size and good precision.  
+
+### Comparing biomarkes types over cancer type using Y effect size
+
+
+```{r}
+# preparing summaries for plotting barchart for Number of cell lines
+maxCT<- 
+  plot_ftype %>%
+  group_by(Cancer_Type) %>%
+  summarise(grp.mean=mean(IC50_Effect_Size),
+            se=sd(IC50_Effect_Size)/sqrt(n()))
+maxCT$se[is.na(maxCT$se)]<-0
+
+
+
+# building the plot
+ggplot_ctype<-ggplot(maxCT, aes(x=Cancer_Type, y = grp.mean,
+                                ymin=grp.mean-se,
+                                ymax= grp.mean+se,
+                                fill= Cancer_Type))+
+  geom_col(width=0.7)+
+  ylim(0,max_effect)+
+  geom_errorbar(width=0.25)+
+  labs(x= " Cancer Type", y = " Average Y score", 
+       fill = "Cancer Type")+
+  theme(text = element_text(size=12),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1),
+        legend.position = "right")
+
+ggplot_ctype
+
+png(filename = "~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/IC50_effect_Tisue.png", res = 150, width =840,height = 840)
+##using box plots
+
+## eliminaty All-molecular Baskets to make plot clear
+plot_ftype1<- plot_ftype[plot_ftype$Cancer_Type!="All-molecular baskets",]
+
+plot_ftype1 %>% tidyr::gather("id", "value",2) %>% 
+ggplot(.,aes(x=Cancer_Type, y=value, color= Cancer_Type, fill=after_scale(desaturate(lighten(color, .6), .6)), shape=Cancer_Type))+
+  geom_boxplot(alpha = 0.80, outlier.shape=NA) + 
+  ylim(0,5)+
+  geom_jitter(width = .3, aes(fill=Cancer_Type), shape = 21, color = "black")+ 
+  labs(x=" Cancer Type", y= 'Input - Effect Size ') +
+  theme(text = element_text(size=12),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1),
+       legend.position = "right") +
+  facet_wrap(~id)
+dev.off()
+
+```
+
+From this plot it is possible to visualise that there will be a small set of feature that have a *large* Y score on all type of cancer. However, on different types of cancer the compounds used in the combos have different effect. The largest effect are possibly on disease segment that we are more specialised in. Interesting is to see the pancreatic cancer and the Ewing's sarcoma appearing almosts the top hits.  
+
+### Comparing Genotype with  Y effect size
+
+## Genotype comparison.
+
+```{r}
+
+maxGT<- 
+  plot_ftype %>%
+  group_by(Genotype) %>%
+  summarise(grp.mean=mean(IC50_Effect_Size),
+            se=sd(IC50_Effect_Size)/sqrt(n()))
+maxCT$se[is.na(maxCT$se)]<-0
+
+# building the plot
+ggplot_gtype<-ggplot(maxGT, aes(x=Genotype, y = grp.mean,
+                                ymin=grp.mean-se,
+                                ymax= grp.mean+se,
+                                fill= Genotype))+
+  geom_col(width=0.7)+
+  ylim(0,max_effect)+
+  geom_errorbar(width=0.25)+
+  labs(x= " Genotype", y = "Average  Y score", 
+       fill = "Genotype")+
+  theme(text = element_text(size=12),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1),
+        legend.position = "right")
+
+ggplot_gtype
+
+##using box plots
+
+png(filename = "~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/IC50_effect_Basket.png", res = 150,width =840,height = 840)
+
+## renaming All in Genotype as All-Genotypes
+plot_ftype1<-plot_ftype
+plot_ftype1$Genotype[plot_ftype1$Genotype=="All"]<-"All-Genotypes"
+
+plot_ftype1 %>% tidyr::gather("id", "value",2) %>% 
+ggplot(.,aes(x=Genotype, y=value, color= Genotype, fill=after_scale(desaturate(lighten(color, .6), .6)), shape=Genotype))+
+  geom_boxplot(alpha = 0.80, outlier.shape=NA) + 
+  ylim(0,5)+
+  geom_jitter(width = .3, aes(fill=Genotype), shape = 21, color = "black")+ 
+  labs(x=" Molecular Baskets", y= 'Input - Effect Size ') +
+  theme(text = element_text(size=12),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1),
+       legend.position = "right") +
+  facet_wrap(~id)
+dev.off()
+
+
+maxDC<- 
+  plot_ftype %>%
+  group_by(Drug_Category) %>%
+  summarise(grp.mean=mean(IC50_Effect_Size),
+            se=sd(IC50_Effect_Size)/sqrt(n()))
+maxDC$se[is.na(maxDC$se)]<-0
+
+# building the plot
+ggplot_gtype<-ggplot(maxDC, aes(x=Drug_Category, y = grp.mean,
+                                ymin=grp.mean-se,
+                                ymax= grp.mean+se,
+                                fill= Drug_Category))+
+  geom_col(width=0.7)+
+  ylim(0,max_effect)+
+  geom_errorbar(width=0.25)+
+  labs(x= " Drug Category", y = "Average  Y score", 
+       fill = "Drug_Category")+
+  theme(text = element_text(size=12),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1),
+        legend.position = "right")
+
+ggplot_gtype
+
+##using box plots
+
+png(filename = "~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/IC50_effect_Drug_Category.png", res = 150,width =1140,height = 840)
+plot_ftype %>% tidyr::gather("id", "value",2) %>% 
+ggplot(.,aes(x=Drug_Category, y=value, color= Drug_Category, fill=after_scale(desaturate(lighten(color, .6), .6)), shape=Drug_Category))+
+  geom_boxplot(alpha = 0.80, outlier.shape=NA) + 
+  ylim(0,5)+
+  geom_jitter(width = .3, aes(fill=Drug_Category), shape = 21, color = "black")+ 
+  labs(x=" Drug Category", y= 'Input - Effect Size ') +
+  theme(text = element_text(size=12),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1),
+       legend.position = "right") +
+  facet_wrap(~id)
+dev.off()
+
+
+
+
+
+
+
+
+```
+
+This barchart gives you a complete overview of the final biomarkers selected when grouped by genotype. It is interesting to note that the standard error is rather small and comparable acroos the data sets. 
+
+## Evaluating the impact of the covariates in selection of biomarkers 
+
+In order to see how the list of selected biomarkes was influenced by the covariates, we will plot a barchart of $-log_{10}(pval)$ of the Y effect size derived by the ANOVA model grouped by the different biomarkers type 
+
+```{r}
+# data preparation
+pvalBT<- 
+  full_data %>%
+  group_by(Features) %>%
+  summarise(grp.mean=mean(-log10(ANOVA_FEATURE_pval)),
+            grp.max=max(-log10(ANOVA_FEATURE_pval)),
+            grp.npval=length(ANOVA_FEATURE_pval),
+            se=sd(-log10(ANOVA_FEATURE_pval))/sqrt(n()))
+pvalBT$se[is.na(pvalBT$se)]<-0
+```
+
+```{r}
+# plotting the mean log pvalues
+
+ggplot_pvalbt<-ggplot(pvalBT, aes(x=Features, y = grp.mean,
+                                ymin=grp.mean-se,
+                                ymax= grp.mean+se,
+                                fill= Features))+
+  geom_col(width=0.7)+
+  geom_errorbar(width=0.25)+
+  labs(x= " Biomarkers Type", y = " Average -log10(pval Y score)", 
+       fill = "Genotype")+
+  theme(text = element_text(size=12),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1),
+        legend.position = "right")
+
+ggplot_pvalbt
+```
+
+```{r}
+## looking at each distribution 
+
+# data preparation
+pvalBTDis<- 
+  full_data %>%
+  group_by(Features)%>%
+  summarise(grp.data=-log10(ANOVA_FEATURE_pval))
+
+#plotting data
+ggplot_pvalbtDIS<-ggplot(pvalBTDis, aes(x=Features, y = grp.data,
+                                fill= Features))+
+  geom_boxplot()+
+  labs(x= " Biomarkers Type", y = " Average -log10(pval Y score)", 
+       fill = "Genotype")+
+  theme(text = element_text(size=12),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1),
+        legend.position = "right")
+
+ggplot_pvalbtDIS
+```
+
+The distrubutions of the mean valuse is fairy uniform and the error bars are quite small a part from the *mutation AZ* and *Mutation - Sanger* which we have already detected are rather noisy. What is interesting is that if we look at the number of the pvalues that have been selected for each fature, we have the following scenario:
+
+```{r}
+ggplot_pvalbt1<-ggplot(pvalBT, aes(x=Features, y = grp.max,
+                                  fill= Features))+
+  geom_col(width=0.7)+
+  labs(x= " Biomarkers Type", y = " Max -log10(pval Y Score)", 
+       fill = "Biomarker Type")+
+  theme(text = element_text(size=12),
+        axis.text.x = element_text(angle = 70, vjust = 1, hjust=1),
+        legend.position = "right")
+
+ggplot_pvalbt1
+```
+
+where the gene expression have a huge bias in the model in terms of selection for final hits.It might also be worth noting that over 1200 of hits are gene of the expression type.
+```{r}
+pvalBT
+```
+
+
+### Evaluating impact of Drugs combinations on Biomarkes types and Cancer types
+
+We are using the heat maps and the hierarchical clustering with Euclidean distance as a similarity function to visualise the Y combinations score acreoss the drug combinations selected. 
+
+
+We will look at the Y scores for cell lines habouring the features and the delta mean Y score to highlight sentitivity and Resistance. 
+
+```{r}
+#full_data$Cancer_type
+
+# building the data structure
+library(reshape2)
+
+cBT<- 
+  full_data %>%
+  group_by(DRUG_NAME.x,Features) %>%
+  summarise(grp.mean=mean(FEATURE_IC50_effect_size))
+
+temp<-dcast(cBT, DRUG_NAME.x ~ Features)
+comboBT<-temp
+```
+
+
+```{r}
+# setting NA as zero to plot a heatmap and HC of the data
+# setting NA as zero for hc and heatmap
+comboBT1<-comboBT
+comboBT1[is.na(comboBT1)]<-0
+row.names(comboBT1)<- comboBT1[,1]
+
+comboBT1 <- comboBT1[,2:5]
+
+```
+
+```{r}
+
+pheatmap(as.matrix(comboBT1), cluster_cols = TRUE, 
+         fontsize_row = 4, fontsize_col = 7)
+
+
+
+```
+
+
+```{r}
+#### ALternative way to draw heat,map with correlation as similarity
+
+# Pairwise correlation between samples (columns)
+cols.cor <- cor(comboBT1, use = "pairwise.complete.obs", method = "pearson")
+# Pairwise correlation between rows (genes)
+rows.cor <- cor(t(comboBT1), use = "pairwise.complete.obs", method = "pearson")
+
+## Row- and column-wise clustering using correlation 
+hclust.col <- hclust(as.dist(1-cols.cor)) 
+hclust.row <- hclust(as.dist(1-rows.cor))
+
+
+# Plot the heatmap
+
+pheatmap(as.matrix(comboBT1), cluster_cols = TRUE, 
+         fontsize_row = 4, fontsize_col = 7)
+
+
+```
+
+The heatmap is built using 1 minus pearson correlation as similarity measure. From this Heatmap it is evident how the effect of the Y score can be associated to one biomaker type or more for each combination evaluated. In the heatmap we have four clusters of combinations that are formed based on their Y score evaluated with the ANOVA model.
+
+Looking at correlation matrices for the interactions across feature types.
+
+```{r}
+library(gplots)
+# heatmap with correlation
+symnum( cU <- cor(comboBT1) )
+
+ ## The Correlation matrix with same reordering:
+ hM <- format(round(cU, 2))
+
+
+ # now with the correlation matrix on the plot itself
+
+ heatmap.2(cU, Rowv=FALSE, symm=TRUE, col=rev(heat.colors(16)),
+             distfun=function(c) as.dist(1 - c), trace="none",
+             cellnote=hM, margins=c(12,12))
+```
+
+Evaluating the correlation of teh cancer types with the Y score  
+
+```{r}
+# building the data structure for cancer type
+library(reshape2)
+
+cCT<- 
+  full_data %>%
+  group_by(DRUG_NAME.x,Cancer_type) %>%
+  summarise(grp.median=median(FEATURE_IC50_effect_size))
+
+temp<-dcast(cCT, DRUG_NAME.x ~ Cancer_type)
+comboCT<-temp
+```
+
+```{r}
+# setting NA as zero to plot a heatmap and HC of the data
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:14]
+
+# Eliminating rows with all zeros. 
+#id<-which(rowSums(comboCT1)==0,arr.ind=TRUE)
+#comboCT1<-comboCT1[-id,]
+
+
+
+```
+
+Drawing heatmap using Euclidean distance  correlation as similarity
+
+```{r}
+
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, 
+         fontsize_row = 4, fontsize_col = 7)
+
+
+```
+Using molecular baskets
+
+```{r}
+ cCT<- 
+  full_data %>%
+  group_by(DRUG_NAME.x,Genotype) %>%
+  summarise(grp.median=median(FEATURE_IC50_effect_size))
+
+temp<-dcast(cCT, DRUG_NAME.x ~ Genotype)
+comboCT<-temp
+
+
+# setting NA as zero to plot a heatmap and HC of the data
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:8]
+
+
+# Drawing heatmap using Euclidean distance  correlation as similarity
+
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, 
+         fontsize_row = 4, fontsize_col = 7)
+```
+Using drug categories
+```{r}
+ cCT<- 
+  full_data %>%
+  group_by(DRUG_NAME.x,Category_New) %>%
+  summarise(grp.median=median(FEATURE_IC50_effect_size))
+
+temp<-dcast(cCT, DRUG_NAME.x ~ Category_New)
+comboCT<-temp
+
+
+# setting NA as zero to plot a heatmap and HC of the data
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:7]
+
+
+# Drawing heatmap using Euclidean distance  correlation as similarity
+
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, 
+         fontsize_row = 4, fontsize_col = 7)
+```
+
+
+## Grouping by feature type
+
+```{r}
+cCT<- 
+  full_data %>%
+  group_by(Features,Genotype) %>%
+  summarise(grp.count=length(Features))
+
+temp<-dcast(cCT, Genotype ~ Features)
+comboCT<-temp
+
+
+# setting NA as zero to plot a heatmap and HC of the data
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:5]
+
+
+# Drawing heatmap using Euclidean distance  correlation as similarity
+png(filename = "~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Biomarkers_summary_Baskets.png", res = 150)
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE, 
+         fontsize_row = 7, fontsize_col = 7, display_numbers = as.matrix(comboCT1))
+dev.off()
+
+
+png(filename = "~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Biomarkers_summary_Baskets_notAll.png", res = 150)
+
+## removing All and All-pancancer for clarity in figures
+comboCT2<-comboCT1[!rownames(comboCT1)=="All",]
+comboCT2<-comboCT2[!rownames(comboCT2)=="All-pancancer",]
+
+pheatmap(as.matrix(comboCT2), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 7, fontsize_col = 7, display_numbers = as.matrix(comboCT2))
+dev.off()
+```
+### Grouping by Cancer Type
+
+```{r}
+cCT<- 
+  full_data %>%
+  group_by(Features,Cancer_type) %>%
+  summarise(grp.count=length(Features))
+
+temp<-dcast(cCT, Cancer_type ~ Features)
+comboCT<-temp
+
+
+# setting NA as zero to plot a heatmap and HC of the data
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:5]
+
+
+# Drawing heatmap using Euclidean distance  correlation as similarity
+png(filename = "~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Biomarkers_summary_Tisue.png", res = 150,width= 680)
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 7, fontsize_col = 7, cellwidth = 20, display_numbers = as.matrix(comboCT1))
+
+dev.off()
+
+## eliminating pancancer from plot to enhance clarity
+
+png(filename = "~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Biomarkers_summary_Tisue_notAll.png", res = 150,width= 680)
+## removing All and All-pancancer for clarity in figures 
+comboCT2<-comboCT1[!rownames(comboCT1)=="All",]
+comboCT2<-comboCT2[!rownames(comboCT2)=="All-pancancer",]
+
+pheatmap(as.matrix(comboCT2), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 7, fontsize_col = 7, cellwidth = 20, display_numbers = as.matrix(comboCT2))
+dev.off()
+
+png(filename = "~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Biomarkers_summary_Tisue_notAll_notMolBaskets.png", res = 150,width= 680)
+## removing All and All-pancancer for clarity in figures 
+comboCT2<-comboCT1[!rownames(comboCT1)=="All",]
+comboCT2<-comboCT2[!rownames(comboCT2)=="All-pancancer",]
+comboCT2<-comboCT2[!rownames(comboCT2)=="All-molecular baskets",]
+
+pheatmap(as.matrix(comboCT2), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 7, fontsize_col = 7, cellwidth = 20, display_numbers = as.matrix(comboCT2))
+dev.off()
+```
+## Grouping by categories
+```{r}
+cCT<- 
+  full_data %>%
+  group_by(Features,Category_New) %>%
+  summarise(grp.count=length(Features))
+
+temp<-dcast(cCT, Category_New ~ Features)
+comboCT<-temp
+
+
+# setting NA as zero to plot a heatmap and HC of the data
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:5]
+
+
+# Drawing heatmap using Euclidean distance  correlation as similarity
+png(filename = "~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Biomarkers_summary_Categories.png", res = 150, width = 880, height = 680)
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 7, fontsize_col = 7, cellwidth = 20, cellheight = 15,
+         display_numbers = as.matrix(comboCT1))
+dev.off()
+```
+
+
+#### Grouping by Drug names
+```{r}
+
+# select the final number of combination before doing this.
+# Loading the pathways and defining the final 113 combos for plotting
+
+final_combos_path<- read.csv("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Combo pathways.csv", header = TRUE)
+
+idx<- match(final_combos_path$COMBO_ID,full_data$DRUG_ID, nomatch = 0) #final 113 combos
+
+#final set of combination 113 in total
+final_data<-full_data[idx,]
+
+
+
+cCT<- 
+  final_data %>%
+  group_by(Features,DRUG_NAME.x) %>%
+  summarise(grp.count=length(Features))
+
+temp<-dcast(cCT, DRUG_NAME.x ~ Features)
+comboCT<-temp
+
+
+# setting NA as zero to plot a heatmap and HC of the data
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:4]
+comboCT1_counts<-comboCT1
+
+# Drawing heatmap using Euclidean distance  correlation as similarity
+
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/DRUG_Name_Patways_Biomarkers.png",width= 2680, height = 2680, 
+    units = "px", res = 150)
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 7, fontsize_col = 7, display_numbers = as.matrix(comboCT1),cellwidth = 35, cellheight = 10)
+dev.off()
+
+
+
+### repeating plots for effect size
+
+cCT<- 
+  final_data %>%
+  group_by(Features,DRUG_NAME.x) %>%
+  summarise(grp.median=median(FEATURE_IC50_effect_size))
+
+temp<-dcast(cCT, DRUG_NAME.x ~ Features)
+comboCT<-temp
+
+
+# setting NA as zero to plot a heatmap and HC of the data
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:4]
+
+
+# Drawing heatmap using Euclidean distance  correlation as similarity
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Drug_Name_Patways_EffectSize.png",width= 2680, height = 2860, units = "px", res = 150)
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 7, fontsize_col = 7, cellwidth = 35, cellheight = 10, 
+         display_numbers = as.matrix(comboCT1_counts))
+dev.off()
+```
+### Plotting pathways vs number of Biomarkers and Effect size.
+```{r}
+
+## finding the pathways to add to the data table
+idx1<- match(final_data$DRUG_ID,final_combos_path$COMBO_ID, nomatch = 0)
+
+final_path<-final_combos_path$Combo_pathway[idx1]
+
+final_data_path<-cbind(final_data,final_path)
+
+cCT<- 
+  final_data_path %>%
+  group_by(Features,final_path) %>%
+  summarise(grp.count=length(Features))
+
+temp<-dcast(cCT, final_path ~ Features)
+comboCT<-temp
+
+
+# setting NA as zero to plot a heatmap and HC of the data
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:4]
+comboCT1_counts<-comboCT1
+
+# Drawing heatmap using Euclidean distance  correlation as similarity
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Pathways_Biomarkers.png",width= 880, height = 880, 
+    units = "px", res = 150)
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 7, fontsize_col = 7, display_numbers = as.matrix(comboCT1), cellwidth = 30, cellheight = 8 )
+dev.off()
+
+
+#pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+#         fontsize_row = 7, fontsize_col = 7, display_numbers = as.matrix(comboCT1),cellwidth = 35, cellheight = 10 )
+
+
+
+### plotting pathway and effect size
+cCT<- 
+  final_data_path %>%
+  group_by(Features,final_path) %>%
+  summarise(grp.median=median(FEATURE_IC50_effect_size))
+
+temp<-dcast(cCT, final_path ~ Features)
+comboCT<-temp
+
+
+# setting NA as zero to plot a heatmap and HC of the data
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:4]
+
+
+# Drawing heatmap using Euclidean distance  correlation as similarity
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Pathways_Effectsize.png",
+    width= 880, height = 880,units = "px", res = 150)
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 7, fontsize_col = 7, cellwidth = 30, cellheight = 8, 
+         display_numbers = as.matrix(comboCT1_counts) )
+dev.off()
+
+
+```
+### Pathways for categories
+```{r}
+
+## finding the pathways to add to the data table
+idx1<- match(final_data$DRUG_ID,final_combos_path$COMBO_ID, nomatch = 0)
+
+final_path<-final_combos_path$Combo_pathway[idx1]
+
+final_data_path<-cbind(final_data,final_path)
+
+cCT<- 
+  final_data_path %>%
+  group_by(Category_New,final_path) %>%
+  summarise(grp.count=length(Category_New))
+
+temp<-dcast(cCT, final_path ~ Category_New)
+comboCT<-temp
+
+
+# setting NA as zero to plot a heatmap and HC of the data
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:10]
+comboCT1_counts<-comboCT1
+
+# Drawing heatmap using Euclidean distance  correlation as similarity
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Pathways_Categories.png",
+    width= 1280, height = 1280,units = "px", res = 150)
+
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 7, fontsize_col = 7, display_numbers = as.matrix(comboCT1), cellwidth = 30, cellheight = 8 )
+dev.off()
+
+
+#pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+#         fontsize_row = 7, fontsize_col = 7, display_numbers = as.matrix(comboCT1),cellwidth = 35, cellheight = 10 )
+
+
+
+### plotting pathway and effect size
+cCT<- 
+  final_data_path %>%
+  group_by(Category_New,final_path) %>%
+  summarise(grp.median=median(FEATURE_IC50_effect_size))
+
+temp<-dcast(cCT, final_path ~ Category_New)
+comboCT<-temp
+
+
+# setting NA as zero to plot a heatmap and HC of the data
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:10]
+
+
+# Drawing heatmap using Euclidean distance  correlation as similarity
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Pathways_Category_Effect_size.png",width= 1280, height = 1280,units = "px", res = 150)
+
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 7, fontsize_col = 7, cellwidth = 30, cellheight = 8, 
+         display_numbers = as.matrix(comboCT1_counts) )
+dev.off()
+
+
+```
+
+
+
+
+
+
+
+```{r}
+# heatmap with correlation across cancer type
+symnum( cU <- cor(comboCT1) )
+
+ ## The Correlation matrix with same reordering:
+ hM <- format(round(cU, 2))
+
+
+ # now with the correlation matrix on the plot itself
+
+ heatmap.2(cU, Rowv=FALSE, symm=TRUE, col=rev(heat.colors(16)),
+             distfun=function(c) as.dist(1 - c), trace="none",
+             cellnote=hM, cexRow= 0.5, cexCol = 0.5, margins=c(6,6))
+```
+
+
+```{r}
+# Looking at sensitivity and Resistance using the delta mean
+
+cBT<- 
+  full_data %>%
+  group_by(DRUG_NAME.x,Features) %>%
+  summarise(grp.mean=mean(FEATURE_delta_MEAN_IC50))
+
+temp<-dcast(cBT, DRUG_NAME.x ~ Features)
+comboBT<-temp
+
+```
+
+```{r}
+# setting NA as zero to plot a heatmap and HC of the data
+# setting NA as zero for hc and heatmap
+comboBT1<-comboBT
+comboBT1[is.na(comboBT1)]<-0
+row.names(comboBT1)<- comboBT1[,1]
+
+comboBT1 <- comboBT1[,2:5]
+```
+
+
+```{r}
+
+pheatmap(as.matrix(comboBT1), cluster_cols = FALSE, 
+         fontsize_row = 4, fontsize_col = 7)
+
+
+```
+
+From the above heatmap it is clear where the strongest resistance interactions (green) and the sensitivity interactions are distributed for features. It would be also interesting to explore this aspect by grouping for cancer types. 
+
+```{r}
+### looking at Sensitivity and Resistance cancer type
+cCT<- 
+  full_data %>%
+  group_by(DRUG_NAME.x,Cancer_type) %>%
+  summarise(grp.median=median(FEATURE_delta_MEAN_IC50))
+
+temp<-dcast(cCT, DRUG_NAME.x ~ Cancer_type)
+comboCT<-temp
+
+
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+
+
+comboCT1 <- comboCT1[,2:14]
+## removing All and All-pancancer for clarity in figures 
+comboCT1<-comboCT1[!rownames(comboCT1)=="All",]
+comboCT1<-comboCT1[!rownames(comboCT1)=="All-pancancer",]
+
+
+### Counting the contribution to the median
+cCT<- 
+  full_data %>%
+  group_by(DRUG_NAME.x,Cancer_type) %>%
+  summarise(grp.counts=length(FEATURE_delta_MEAN_IC50))
+
+temp<-dcast(cCT, DRUG_NAME.x ~ Cancer_type)
+comboCT<-temp
+
+# setting NA as zero for hc and heatmap
+comboCT2<-comboCT
+comboCT2[is.na(comboCT2)]<-0
+row.names(comboCT2)<- comboCT2[,1]
+
+comboCT1_counts <- comboCT2[,2:14]
+
+
+
+
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Drug_Sensitivity.png",width= 2680, height = 2680, 
+    units = "px", res = 150)
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 7, fontsize_col = 8, cellwidth = 30, cellheight = 8, 
+         display_numbers = as.matrix(comboCT1_counts) )
+dev.off()
+
+
+## molecular baskets
+cCT<- 
+  full_data %>%
+  group_by(DRUG_NAME.x,Genotype) %>%
+  summarise(grp.median=median(FEATURE_delta_MEAN_IC50))
+
+temp<-dcast(cCT, DRUG_NAME.x ~ Genotype)
+comboCT<-temp
+
+## removing All and All-pancancer for clarity in figures 
+comboCT<-comboCT[,!colnames(comboCT)=="All"]
+comboCT<-comboCT[,!colnames(comboCT)=="All-pancancer"]
+
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:7]
+
+
+### Counting the contribution to the median
+cCT<- 
+  full_data %>%
+  group_by(DRUG_NAME.x,Genotype) %>%
+  summarise(grp.counts=length(FEATURE_delta_MEAN_IC50))
+
+temp<-dcast(cCT, DRUG_NAME.x ~ Genotype)
+comboCT<-temp
+
+# setting NA as zero for hc and heatmap
+comboCT2<-comboCT
+comboCT2[is.na(comboCT2)]<-0
+row.names(comboCT2)<- comboCT2[,1]
+
+comboCT1_counts <- comboCT2[,2:7]
+
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Genotype_Sensitivity.png",
+    width= 1880, height = 1880, units = "px", res = 150)
+
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 7, fontsize_col = 8, cellwidth = 30, cellheight = 8, 
+         display_numbers = as.matrix(comboCT1_counts), angle_col = 45 )
+dev.off()
+
+
+## Drug Categories
+cCT<- 
+  full_data %>%
+  group_by(DRUG_NAME.x,Category_New) %>%
+  summarise(grp.median=median(FEATURE_delta_MEAN_IC50))
+
+temp<-dcast(cCT, DRUG_NAME.x ~ Category_New)
+comboCT<-temp
+
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:10]
+comboCT1_counts<-comboCT1
+
+
+#### counting contribution to the median
+cCT<- 
+  full_data %>%
+  group_by(DRUG_NAME.x,Category_New) %>%
+  summarise(grp.counts=length(FEATURE_delta_MEAN_IC50))
+
+temp<-dcast(cCT, DRUG_NAME.x ~ Category_New)
+comboCT<-temp
+
+# setting NA as zero for hc and heatmap
+comboCT2<-comboCT
+comboCT2[is.na(comboCT2)]<-0
+row.names(comboCT2)<- comboCT2[,1]
+
+comboCT2 <- comboCT2[,2:10]
+comboCT1_counts<-comboCT2
+
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Category_Sensitivity.png",width= 1880, 
+    height = 1880, units = "px", res = 150)
+
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 7, fontsize_col = 8, cellwidth = 30, cellheight = 8, 
+         display_numbers = as.matrix(comboCT1_counts),angle_col = 45)
+dev.off()
+
+
+```
+
+In the heatmap you can note that the majority of the gene expression markers are generally associate to all type of cancers, few are assocated to Lung cancer and others are quite specific. Shared biomarkers might be an interesting follow up. 
+
+The correlation analysis does not show a strong correlation between cancer types based on the effect sizes of the drug combinations. There is a slight positive correlation for the Methylation features and the genomic mutation, which might be expected. The copy Number Alteration from AZ and Sanger databases are also correlated as expected.  
+
+The associations of the biomarkers with the drug combination is not clear if can be detected using the linear model described above. 
+
+
+### Split the inibition effect ( comboEmax) input from Synergistic (Bliss/HSA)
+
+
+```{r}
+comboE<-full_data[which(full_data$Input=="Combo Emax", arr.ind=TRUE),]
+bliss<-full_data[which(full_data$Input=="Bliss matrix", arr.ind=TRUE),]
+
+test<-merge(comboE,bliss,by.x="DRUG_NAME.x", by.y="DRUG_NAME.x", all=TRUE)
+#write.csv(test,file="merge_BLiss_ComboE.csv")
+
+```
+
+```{r}
+## heatmap for ComboEmax INPUT ( INIBITION effect)
+# Y score
+
+ccCT<- 
+  comboE %>%
+  group_by(DRUG_NAME.x,Features) %>%
+  summarise(grp.median=median(FEATURE_IC50_effect_size))
+
+temp<-dcast(ccCT, DRUG_NAME.x ~ Features)
+
+
+comboCT<-temp
+
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:5]
+
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Emax_Effect size.png",width= 2680, height = 2680, 
+    units = "px", res = 150)
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 6, fontsize_col = 7, cellwidth = 35,cellheight = 10)
+dev.off()
+
+
+
+
+#### counting biomarkers
+
+ccCT<- 
+  comboE %>%
+  group_by(DRUG_NAME.x,Features) %>%
+  summarise(grp.count=length(Features))
+
+temp<-dcast(ccCT, DRUG_NAME.x ~ Features)
+
+
+comboCT<-temp
+
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:5]
+
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Emax_Biomarkers.png",width= 2480, height = 2480, 
+    units = "px", res = 150)
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 6, fontsize_col = 7, display_numbers =as.matrix(comboCT1), cellwidth = 35,cellheight = 10)
+dev.off()
+
+### category describition
+ccCT<- 
+  comboE %>%
+  group_by(DRUG_NAME.x,Category_New) %>%
+  summarise(grp.median=median(FEATURE_IC50_effect_size))
+
+temp<-dcast(ccCT, DRUG_NAME.x ~ Category_New)
+
+
+comboCT<-temp
+
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:10]
+comboCT1_counts<-comboCT1
+
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/category_Emax_Effect size.png",
+    width= 2680, height = 2680, units = "px", res = 150)
+
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 6, fontsize_col = 7, cellwidth = 35,cellheight = 10, 
+         display_numbers = as.matrix(comboCT1_counts))
+dev.off()
+
+
+
+
+#### counting biomarkers
+
+ccCT<- 
+  comboE %>%
+  group_by(DRUG_NAME.x,Category_New) %>%
+  summarise(grp.count=length(Category_New))
+
+temp<-dcast(ccCT, DRUG_NAME.x ~ Category_New)
+
+
+comboCT<-temp
+
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:10]
+
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Emergent_images/Emax_Category.png",width= 2480, height = 2480, 
+    units = "px", res = 150)
+
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 6, fontsize_col = 7, display_numbers =as.matrix(comboCT1), cellwidth = 35,cellheight = 10)
+
+dev.off()
+
+
+
+
+```
+
+# BLISS data
+
+```{r}
+ccCT<- 
+  bliss %>%
+  group_by(DRUG_NAME.x,Features) %>%
+  summarise(grp.mean=mean(FEATURE_IC50_effect_size))
+
+temp<-dcast(ccCT, DRUG_NAME.x ~ Features)
+
+
+comboCT<-temp
+
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:4]
+
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Bliss_Effect size.png",width= 2680, height = 2680, 
+    units = "px", res = 150)
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 6, fontsize_col = 7, cellwidth = 35,cellheight = 10)
+dev.off()
+
+
+
+
+#### counting biomarkers
+
+ccCT<- 
+  bliss %>%
+  group_by(DRUG_NAME.x,Features) %>%
+  summarise(grp.count=length(Features))
+
+temp<-dcast(ccCT, DRUG_NAME.x ~ Features)
+
+
+comboCT<-temp
+
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:4]
+
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Bliss_Biomarkers.png",width= 2480, height = 2480, 
+    units = "px", res = 150)
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 6, fontsize_col = 7, display_numbers =as.matrix(comboCT1), cellwidth = 35,cellheight = 10)
+dev.off()
+
+#### cdrug category 
+
+
+ccCT<- 
+  bliss %>%
+  group_by(DRUG_NAME.x,Category_New) %>%
+  summarise(grp.mean=mean(FEATURE_IC50_effect_size))
+
+temp<-dcast(ccCT, DRUG_NAME.x ~ Category_New)
+
+
+comboCT<-temp
+
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:7]
+
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/category_Bliss_Effect size.png",width= 2680, height = 2680, 
+    units = "px", res = 150)
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 6, fontsize_col = 7, cellwidth = 35,cellheight = 10)
+dev.off()
+
+### counting categories
+
+ccCT<- 
+  bliss %>%
+  group_by(DRUG_NAME.x,Category_New) %>%
+  summarise(grp.count=length(Category_New))
+
+temp<-dcast(ccCT, DRUG_NAME.x ~ Category_New)
+
+
+comboCT<-temp
+
+# setting NA as zero for hc and heatmap
+comboCT1<-comboCT
+comboCT1[is.na(comboCT1)]<-0
+row.names(comboCT1)<- comboCT1[,1]
+
+comboCT1 <- comboCT1[,2:7]
+
+png("~/OneDrive - AZCollaboration/Projects/Sanger_Data/Bliss_Category.png",width= 2480, height = 2480, 
+    units = "px", res = 150)
+pheatmap(as.matrix(comboCT1), cluster_cols = FALSE, cluster_rows = FALSE,
+         fontsize_row = 6, fontsize_col = 7, display_numbers =as.matrix(comboCT1), cellwidth = 35,cellheight = 10)
+dev.off()
+
+
+
+```
+
+
+
+## Evaluation of how well the features selected can separate the Cancer types and genotypes.
+
+
+```{r}
+library(Rtsne)
+
+# preparing teh data
+vis_mat<- 
+  full_data %>%
+  group_by(FEATURE,DRUG_NAME.x,Cancer_type,Genotype)%>%
+  summarise(grp.mean=mean(FEATURE_IC50_effect_size))
+
+
+temp<-dcast(vis_mat,DRUG_NAME.x~ Genotype,
+            fun.aggregate = mean, value.var = "grp.mean")
+
+
+mat<-t(temp[,2:8])
+colnames(mat)<-temp[,1]
+
+mat[is.nan(mat)]<-0
+
+# running tSNE
+tsne_mat<-Rtsne(mat,labels=as.factor(row.names(mat)), perplexity=2)
+plot_mat<- data.frame(tsne_x=tsne_mat$Y[,1],tsne_y=tsne_mat$Y[,2], 
+                      rownames(mat))
+
+colnames(plot_mat)[3]<-"Genotype"
+
+ggp1<-ggplot(plot_mat,aes(x=tsne_x,y=tsne_y,color=Genotype))+
+  geom_point()
+
+ggp1
+
+```
+
+The data is clearly separated by genotype using the feature extracted and gruped by drugs compounds. It is uqually applicable for cancer types, as shawn in the plot below.
+
+```{r}
+temp<-dcast(vis_mat,DRUG_NAME.x~ Cancer_type,
+            fun.aggregate = mean, value.var = "grp.mean")
+
+
+mat<-t(temp[,2:9])
+colnames(mat)<-temp[,1]
+
+mat[is.nan(mat)]<-0
+
+# running tSNE
+tsne_mat<-Rtsne(mat,labels=as.factor(row.names(mat)), perplexity=2)
+plot_mat<- data.frame(tsne_x=tsne_mat$Y[,1],tsne_y=tsne_mat$Y[,2], 
+                      rownames(mat))
+
+colnames(plot_mat)[3]<-"Cancer_Type"
+
+ggp2<-ggplot(plot_mat,aes(x=tsne_x,y=tsne_y,color=Cancer_Type))+
+  geom_point()
+
+ggp2
+```
+
+The tSNE plots clearly show that the cancer types can be separated based on the interaction effect of the drugs combinations. There is no distinct separation of the genotype which can make laed to the hypothesis that the mayor impact in this selection is palyed by the interactions of the combinations the drugs within the cancer types. 
 
 
 
