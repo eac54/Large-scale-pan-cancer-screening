@@ -1,0 +1,693 @@
+---
+title: "Analysis for paper"
+author: "Lizzie Coker"
+date: "20/04/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plyr)
+library(reshape2)
+library(scales)
+library(dplyr)
+library(ggplot2)
+library(superheat)
+library(rowr)
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(knitr)
+library(lubridate)
+library(tidyr)
+library(RColorBrewer)
+library(reshape2)
+library(knitr)
+library(kableExtra)
+library(scales)
+library(ggpubr)
+library(stats)
+library(ggridges)
+library(hexbin)
+set.seed(13)
+```
+
+## Data upload
+```{r}
+sand1<-read.csv("Input/sandpiper-01_matrix_results.csv")
+sand1$screen<-"Sandpiper_1"
+g7<-read.csv("Input/gdsc-007_matrix_results.csv")
+g7$screen<-"GDSC007"
+g8<-read.csv("Input/gdsc-008_matrix_results.csv")
+g8$screen<-"GDSC008"
+g9<-read.csv("Input/gdsc-009_matrix_results.csv")
+g9$screen<-"GDSC009"
+g10<-read.csv("Input/gdsc-010_matrix_results.csv")
+g10$screen<-"GDSC010"
+
+data<-rbind(sand1, g7, g8, g9, g10)
+#write.csv(data, "Supplementary Table 3 - single and combination metrics.csv")
+```
+
+## Overall stats
+```{r}
+#Number of cell lines
+length(unique(data$CELL_LINE_NAME))
+#Number of cancer types
+length(unique(data$CANCER_TYPE))
+#Number of combinations
+data$combo_id<-paste(data$lib1_name, data$lib2_name, sep=" + ")
+length(unique(data$combo_id))
+#Number of combinations-cell line pairs
+data$combo_id_cl<-paste(data$combo_id, data$CELL_LINE_NAME, sep=", ")
+length(unique(data$combo_id_cl))
+#Numbers of combinations and cell lines in the full and half panels
+full_panel<-subset(data, data$screen!="GDSC010")
+length(unique(full_panel$CELL_LINE_NAME))
+length(unique(full_panel$combo_id))
+half_panel<-subset(data, data$screen=="GDSC010")
+length(unique(half_panel$CELL_LINE_NAME))
+length(unique(half_panel$combo_id))
+
+#Counting number of instances where Bliss window is positive and Bliss matrix is negative
+nrow(data[(data$Bliss_window > 0 & data$Bliss_matrix<0),])
+43967/84055
+
+
+#Making table of cell lines
+cell_lines<-select(data, CELL_LINE_NAME, COSMIC_ID, SIDM, TISSUE, CANCER_TYPE)
+cell_lines<-distinct(cell_lines)
+write.csv(cell_lines, "Cell_lines_used.csv", row.names = FALSE)
+
+#Making table of combinations
+combo_list<-select(data, lib1_ID, lib1_name, lib1_owner, lib2_ID, lib2_name, lib2_owner, combo_id, screen)
+combo_list<-distinct(combo_list)
+write.csv(combo_list, "Combinations_used.csv", row.names = FALSE)
+
+```
+## Fig 1B - note additional annotation in Adobe Illustrator
+```{r}
+#Making frequency table of cell line cancer types
+cell_lines_freq<-cell_lines %>%
+  group_by(CANCER_TYPE) %>%
+  summarize(Freq=n()) %>%
+  arrange(desc(Freq))
+
+
+ggplot(cell_lines_freq, aes(x="", y=Freq, fill=reorder(CANCER_TYPE, Freq))) +
+  geom_bar(stat="identity", width=1, color="white") +
+  coord_polar("y", start=0) +
+  theme_void() + 
+  theme(legend.position="none") 
+
+```
+
+## Making matrices of values - example input file for GDSCTools
+```{r}
+#For each metric used for biomarker input, need to create matrices of these inputs for GDSCTools ANOVAs
+sand1_combo_Emax_matrix<-sand1
+sand1_combo_Emax_matrix$Combination<-paste(sand1_combo_Emax_matrix$lib1_ID, sand1_combo_Emax_matrix$lib2_ID, sep="")
+sand1_combo_Emax_matrix<-select(sand1_combo_Emax_matrix, COSMIC_ID, Combination, combo_MaxE)
+sand1_combo_Emax_matrix<-aggregate(.~COSMIC_ID + Combination, sand1_combo_Emax_matrix, mean)
+sand1_combo_Emax_matrix$COSMIC_ID<-paste0('abc', sand1_combo_Emax_matrix$COSMIC_ID)
+an <- with(sand1_combo_Emax_matrix, sort(unique(c(as.character(COSMIC_ID), as.character(Combination)))))
+M <- array(0, c(length(an), length(an)), list(an, an))
+i <- match(sand1_combo_Emax_matrix$COSMIC_ID, an)
+j <- match(sand1_combo_Emax_matrix$Combination, an)
+M[cbind(i,j)] <- M[cbind(j,i)] <- sand1_combo_Emax_matrix$combo_MaxE
+newM<-M[, -grep("abc", colnames(M))]
+thirdM<-newM[grep("abc", row.names(newM)),]
+row.names(thirdM)<-sub("abc", "", row.names(thirdM))
+write.csv(thirdM, "Biomarker_inputs/Sandpiper1_Combo_MaxE_matrix.csv")
+
+
+g07_combo_Emax_matrix<-g7
+g07_combo_Emax_matrix$Combination<-paste(g07_combo_Emax_matrix$lib1_ID, g07_combo_Emax_matrix$lib2_ID, sep="")
+g07_combo_Emax_matrix<-select(g07_combo_Emax_matrix, COSMIC_ID, Combination, combo_MaxE)
+g07_combo_Emax_matrix<-aggregate(.~COSMIC_ID + Combination, g07_combo_Emax_matrix, mean)
+g07_combo_Emax_matrix$COSMIC_ID<-paste0('abc', g07_combo_Emax_matrix$COSMIC_ID)
+an <- with(g07_combo_Emax_matrix, sort(unique(c(as.character(COSMIC_ID), as.character(Combination)))))
+M <- array(0, c(length(an), length(an)), list(an, an))
+i <- match(g07_combo_Emax_matrix$COSMIC_ID, an)
+j <- match(g07_combo_Emax_matrix$Combination, an)
+M[cbind(i,j)] <- M[cbind(j,i)] <- g07_combo_Emax_matrix$combo_MaxE
+newM<-M[, -grep("abc", colnames(M))]
+thirdM<-newM[grep("abc", row.names(newM)),]
+row.names(thirdM)<-sub("abc", "", row.names(thirdM))
+write.csv(thirdM, "Biomarker_inputs/GDSC007_Combo_MaxE_matrix.csv")
+
+g08_combo_Emax_matrix<-g8
+g08_combo_Emax_matrix$Combination<-paste(g08_combo_Emax_matrix$lib1_ID, g08_combo_Emax_matrix$lib2_ID, sep="")
+g08_combo_Emax_matrix<-select(g08_combo_Emax_matrix, COSMIC_ID, Combination, combo_MaxE)
+g08_combo_Emax_matrix<-aggregate(.~COSMIC_ID + Combination, g08_combo_Emax_matrix, mean)
+g08_combo_Emax_matrix$COSMIC_ID<-paste0('abc', g08_combo_Emax_matrix$COSMIC_ID)
+an <- with(g08_combo_Emax_matrix, sort(unique(c(as.character(COSMIC_ID), as.character(Combination)))))
+M <- array(0, c(length(an), length(an)), list(an, an))
+i <- match(g08_combo_Emax_matrix$COSMIC_ID, an)
+j <- match(g08_combo_Emax_matrix$Combination, an)
+M[cbind(i,j)] <- M[cbind(j,i)] <- g08_combo_Emax_matrix$combo_MaxE
+newM<-M[, -grep("abc", colnames(M))]
+thirdM<-newM[grep("abc", row.names(newM)),]
+row.names(thirdM)<-sub("abc", "", row.names(thirdM))
+write.csv(thirdM, "Biomarker_inputs/GDSC008_Combo_MaxE_matrix.csv")
+
+g09_combo_Emax_matrix<-g9
+g09_combo_Emax_matrix$Combination<-paste(g09_combo_Emax_matrix$lib1_ID, g09_combo_Emax_matrix$lib2_ID, sep="")
+g09_combo_Emax_matrix<-select(g09_combo_Emax_matrix, COSMIC_ID, Combination, combo_MaxE)
+g09_combo_Emax_matrix<-aggregate(.~COSMIC_ID + Combination, g09_combo_Emax_matrix, mean)
+g09_combo_Emax_matrix$COSMIC_ID<-paste0('abc', g09_combo_Emax_matrix$COSMIC_ID)
+an <- with(g09_combo_Emax_matrix, sort(unique(c(as.character(COSMIC_ID), as.character(Combination)))))
+M <- array(0, c(length(an), length(an)), list(an, an))
+i <- match(g09_combo_Emax_matrix$COSMIC_ID, an)
+j <- match(g09_combo_Emax_matrix$Combination, an)
+M[cbind(i,j)] <- M[cbind(j,i)] <- g09_combo_Emax_matrix$combo_MaxE
+newM<-M[, -grep("abc", colnames(M))]
+thirdM<-newM[grep("abc", row.names(newM)),]
+row.names(thirdM)<-sub("abc", "", row.names(thirdM))
+write.csv(thirdM, "Biomarker_inputs/GDSC009_Combo_MaxE_matrix.csv")
+
+g10_combo_Emax_matrix<-g10
+g10_combo_Emax_matrix$Combination<-paste(g10_combo_Emax_matrix$lib1_ID, g10_combo_Emax_matrix$lib2_ID, sep="")
+g10_combo_Emax_matrix<-select(g10_combo_Emax_matrix, COSMIC_ID, Combination, combo_MaxE)
+g10_combo_Emax_matrix<-aggregate(.~COSMIC_ID + Combination, g10_combo_Emax_matrix, mean)
+g10_combo_Emax_matrix$COSMIC_ID<-paste0('abc', g10_combo_Emax_matrix$COSMIC_ID)
+an <- with(g10_combo_Emax_matrix, sort(unique(c(as.character(COSMIC_ID), as.character(Combination)))))
+M <- array(0, c(length(an), length(an)), list(an, an))
+i <- match(g10_combo_Emax_matrix$COSMIC_ID, an)
+j <- match(g10_combo_Emax_matrix$Combination, an)
+M[cbind(i,j)] <- M[cbind(j,i)] <- g10_combo_Emax_matrix$combo_MaxE
+newM<-M[, -grep("abc", colnames(M))]
+thirdM<-newM[grep("abc", row.names(newM)),]
+row.names(thirdM)<-sub("abc", "", row.names(thirdM))
+write.csv(thirdM, "Biomarker_inputs/GDSC010_Combo_MaxE_matrix.csv")
+
+#Merging all matrices together
+sand1_m<-read.csv("Biomarker_inputs/Sandpiper1_Combo_MaxE_matrix.csv")
+g7_m<-read.csv("Biomarker_inputs/GDSC007_Combo_MaxE_matrix.csv")
+g8_m<-read.csv("Biomarker_inputs/GDSC008_Combo_MaxE_matrix.csv")
+g9_m<-read.csv("Biomarker_inputs/GDSC009_Combo_MaxE_matrix.csv")
+g10_m<-read.csv("Biomarker_inputs/GDSC010_Combo_MaxE_matrix.csv")
+colnames(sand1_m)<-gsub("X", "", colnames(sand1_m))
+colnames(g7_m)<-gsub("X", "", colnames(g7_m))
+colnames(g8_m)<-gsub("X", "", colnames(g8_m))
+colnames(g9_m)<-gsub("X", "", colnames(g9_m))
+colnames(g10_m)<-gsub("X", "", colnames(g10_m))
+
+#adding differential labelling to distinguish between 007 and 008 screen for repeated combination
+colnames(g7_m)<-gsub("24312574", "2431257407", colnames(g7_m))
+colnames(g8_m)<-gsub("24312574", "2431257408", colnames(g8_m))
+
+overall_combo_maxE<-cbind.fill(sand1_m,g7_m,g8_m,g9_m, g10_m, fill = NA)
+#Removing repeated name row
+overall_combo_maxE<-overall_combo_maxE[,-4]
+overall_combo_maxE<-overall_combo_maxE[,-29]
+overall_combo_maxE<-overall_combo_maxE[,-57]
+overall_combo_maxE<-overall_combo_maxE[,-85]
+colnames(overall_combo_maxE)<-gsub("X", "", colnames(overall_combo_maxE))
+colnames(overall_combo_maxE)[1]<-"COSMIC_ID"
+write.csv(overall_combo_maxE, "Biomarker_inputs/Sand1-GDSC010_Combo_MaxE_matrix.csv", row.names = FALSE)
+```
+
+##Figure 1D
+```{r}
+heatmap<-read.csv("Biomarker_inputs/Sand1-GDSC010_Combo_MaxE_matrix.csv")
+rnames <- heatmap[,1]
+mat_data <- data.matrix(heatmap[,2:111])
+rownames(mat_data) <- rnames
+
+superheat(mat_data, scale = FALSE, row.dendrogram = TRUE, col.dendrogram = TRUE, title = "Combo Emax no scaling", row.title = "Cell lines", column.title = "Drug combinations", legend.text.size = 7, heat.na.col = "white", bottom.label.text.angle = 90, bottom.label.text.size = 2)
+
+```
+
+
+##Figure S1A
+```{r}
+data_S1E_1<-data
+data_S1E_2<-data
+#Rename lib1 and lib2 ln IC50s as single agent ln IC50s
+names(data_S1E_1)[17]<-"Sandpiper_ln_IC50"
+names(data_S1E_2)[28]<-"Sandpiper_ln_IC50"
+#Create compound variable of cell line ID and drug ID for matching to monotherapy data
+data_S1E_1$test<-paste(data_S1E_1$SIDM, data_S1E_1$lib1_ID, sep="_")
+data_S1E_2$test<-paste(data_S1E_2$SIDM, data_S1E_2$lib2_ID, sep="_")
+data_S1E_1<-select(data_S1E_1, test, Sandpiper_ln_IC50)
+data_S1E_2<-select(data_S1E_2, test, Sandpiper_ln_IC50)
+data_S1E<-rbind(data_S1E_1, data_S1E_2)
+#Aggregate replicates by mean
+data_S1E<-aggregate(x = data_S1E$Sandpiper_ln_IC50,
+                by = list(data_S1E$test),              
+                FUN = mean)   
+names(data_S1E)[2]<-"Sandpiper_ln_IC50"
+names(data_S1E)[1]<-"test"
+
+#Read in previously published single agent ln_IC50s
+gdsc2<-read.csv("Input/GDSC2_fitted_dose_response_25Feb20.csv")
+gdsc2<-select(gdsc2, SANGER_MODEL_ID, DRUG_ID, LN_IC50)
+names(gdsc2)[3]<-"GDSC2_ln_IC50"
+#Create compound variable of cell line ID and drug ID for matching to combination single agent ln IC50s
+gdsc2$test<-paste(gdsc2$SANGER_MODEL_ID, gdsc2$DRUG_ID, sep="_")
+gdsc2<-gdsc2[,-1:-2]
+#Aggregate replicates by mean
+gdsc2<-aggregate(x = gdsc2$GDSC2_ln_IC50,
+                 by = list(gdsc2$test),              
+                 FUN = mean)   
+names(gdsc2)[2]<-"GDSC2_ln_IC50"
+names(gdsc2)[1]<-"test"
+
+all_S1E<-merge(data_S1E, gdsc2, by="test")
+
+#correlation between combination study ln IC50s and previously-published ln IC50s
+cor(all_S1E$Sandpiper_ln_IC50, all_S1E$GDSC2_ln_IC50)
+
+plot(all_S1E$GDSC2_ln_IC50, all_S1E$Sandpiper_ln_IC50, xlab="ln(IC50) in GDSC2", ylab="ln(IC50) for single agents in this study", pch=20)
+
+
+```
+
+##Figure S1I
+```{r}
+data_1_scatter<-data
+data_2_scatter<-data
+#Renaming lib1 and lib2 Emax as single agent Emax
+names(data_1_scatter)[16]<-"Single_agent_Emax"
+names(data_2_scatter)[27]<-"Single_agent_Emax"
+data_1_scatter<-select(data_1_scatter, Single_agent_Emax, combo_MaxE, Bliss_matrix, HSA_matrix)
+data_2_scatter<-select(data_2_scatter, Single_agent_Emax, combo_MaxE, Bliss_matrix, HSA_matrix)
+data_scatter<-rbind(data_1_scatter, data_2_scatter)
+
+plot(data_scatter$Single_agent_Emax, data_scatter$combo_MaxE, xlab="Single agent Emax", ylab="Combo Emax", pch=20)
+
+
+```
+
+##Figure 1C
+```{r}
+data_S1G<-select(data, lib1_ID, lib1_pathway, lib2_ID, lib2_pathway)
+#Identify distinct drug combinations
+data_S1G<-distinct(data_S1G)
+data_S1G$LIB1<-""
+data_S1G$LIB2<-""
+data_S1G$lib2_pathway<-gsub("Other", "Chemotherapy", data_S1G$lib2_pathway)
+data_S1G$lib1_pathway<-as.character(data_S1G$lib1_pathway)
+data_S1G$lib2_pathway<-as.character(data_S1G$lib2_pathway)
+for (i in 1:nrow(data_S1G)){
+  #Display pathway pairings in alphabetical order
+  data_S1G$LIB1[i]<-pmin(data_S1G$lib1_pathway[i], data_S1G$lib2_pathway[i])
+  data_S1G$LIB2[i]<-pmax(data_S1G$lib1_pathway[i], data_S1G$lib2_pathway[i])
+}
+
+
+a<-table(data_S1G$LIB1, data_S1G$LIB2)
+a<-as.data.frame(a)
+names(a)<-c("lib1_pathway", "lib2_pathway", "Frequency")
+
+ggplot(a, aes(lib1_pathway, lib2_pathway)) + geom_point(aes(size=Frequency))+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(size = "Number of combinations", x= "Pathway 1", y="Pathway 2") +scale_size_area( max_size = 10)
+
+#Table of number of pathway combinations
+a
+```
+
+##Figure S1G
+```{r}
+plot(data_scatter$Bliss_matrix, data_scatter$combo_MaxE, xlab="Bliss excess", ylab="Combo Emax", pch=20)
+abline(v = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
+```
+
+##Figure S1H
+```{r}
+plot(data_scatter$HSA_matrix, data_scatter$combo_MaxE, xlab="HSA excess", ylab="Combo Emax", pch=20)
+abline(v = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
+
+```
+
+##Figure S1F
+```{r}
+plot(data_scatter$Bliss_matrix, data_scatter$HSA_matrix, xlab="Bliss excess", ylab="HSA excess", pch=20)
+abline(h = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
+abline(v = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
+cor(data_scatter$Bliss_matrix, data_scatter$HSA_matrix)
+```
+
+##Figure S1J
+```{r}
+plot(data_scatter$Single_agent_Emax, data_scatter$Bliss_matrix, xlab="Single agent Emax", ylab="Bliss excess", pch=20)
+abline(h = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
+```
+
+##Figure S1K
+```{r}
+a<-read.csv("Input/plate_qc_Sandpiper-01_13May22.csv")
+b<-read.csv("Input/plate_qc_Sandpiper-02_13May22.csv")
+data_S1L<-rbind(a,b)
+data_S1L<-subset(data_S1L, data_S1L$QC_FLAG=="P")
+data_S1L<-subset(data_S1L, data_S1L$RATIO_NC1_TO_PC1>=4)
+data_S1L<-subset(data_S1L, data_S1L$RATIO_NC1_TO_PC2>=4)
+data_S1L$label<-"DMSO, NC1"
+
+#CV plot - remember to change dashed line according to threshold
+p <- ggplot(data_S1L, aes(x=CV_NC1)) + geom_boxplot() + scale_color_grey() + theme_classic() + coord_flip() + labs(x="Coefficient of variation (CV)", ylab="DMSO\n NC1") + theme(axis.ticks = element_blank(), axis.text.x=element_blank()) + geom_vline(xintercept=0.18, linetype="dashed",  color = "gray", size=2) + xlim(0,0.2)
+p
+
+median(data_S1L$CV_NC1)
+range(data_S1L$CV_NC1)
+```
+##Figure S1L
+```{r}
+data_S1L_1<-data_S1L$Z_NC1_PC1
+data_S1L_2<-data_S1L$Z_NC1_PC2
+data_S1L_B<-data_S1L$Z_NC1_B
+
+data_S1L_1<-as.data.frame(data_S1L_1)
+data_S1L_2<-as.data.frame(data_S1L_2)
+data_S1L_B<-as.data.frame(data_S1L_B)
+names(data_S1L_1)[1]<-"Value"
+names(data_S1L_2)[1]<-"Value"
+names(data_S1L_B)[1]<-"Value"
+data_S1L_1$type<-"MG-132 (PC1)"
+data_S1L_2$type<-"Staurosporin (PC2)"
+data_S1L_B$type<-"Blank (B)"
+
+new_S1M<-rbind(data_S1L_1, data_S1L_2, data_S1L_B)
+
+#Z score - remember to change dashed line according to threshold
+p <- ggplot(new_S1M, aes(x=Value, y=type)) + geom_boxplot() + scale_color_grey() + theme_classic() + coord_flip() + labs(x="Z-factor", y="Variable")  + geom_vline(xintercept=0.3, linetype="dashed", color = "gray", size=2) + xlim(0,0.9)
+p
+
+
+pos<-rbind(data_S1L_1, data_S1L_2)
+
+median(pos$Value)
+max(pos$Value) - min(pos$Value)
+
+```
+
+
+##Figure S1M
+```{r}
+library(ggplot2)
+library(dplyr)
+data_s<-read.csv("Input/sandpiper-01_matrix_results.csv")
+data_s$Screen<-"Sandpiper1"
+
+data_7<-read.csv("Input/gdsc-007_matrix_results.csv")
+data_7$Screen<-"GDSC007"
+data_8<-read.csv("Input/gdsc-008_matrix_results.csv")
+data_8$Screen<-"GDSC008"
+data_9<-read.csv("Input/gdsc-009_matrix_results.csv")
+data_9$Screen<-"GDSC009"
+data_10<-read.csv("Input/gdsc-010_matrix_results.csv")
+data_10$Screen<-"GDSC010b"
+data_7plus<-rbind(data_7, data_8, data_9, data_10)
+
+All.data<-rbind(data_s, data_7plus)
+
+
+#write function to shorten p-values
+format_pval <- function(pval){
+  pval <- scales::pvalue(pval, accuracy= 0.001, add_p = TRUE)
+  gsub(pattern = "(=|<)", replacement = " \\1 ", x = pval)
+}
+
+
+Correlation.BioReps_Average.Responses <- All.data %>%
+  filter(CELL_LINE_NAME %in% c("A375", "HT-29", "PC-14", "U-2-OS", "SW620", "C32", "MHH-ES-1")) %>%
+  left_join(All.data%>%
+              #mutate(Date = as.Date(DATE_CREATED, format = "%d-%b-%y")) %>%
+              select(BARCODE,DRUGSET_ID) %>%
+              distinct()) %>%
+  group_by(DRUGSET_ID,CELL_LINE_NAME, lib1_ID, lib2_ID, Screen) %>%
+  summarise(combo_MaxE = mean(combo_MaxE),
+            Bliss_matrix = mean(Bliss_matrix),
+            Bliss_window = mean(Bliss_window),
+            HSA_matrix = mean(HSA_matrix),
+            HSA_window = mean(HSA_window)) %>%
+  ungroup %>%
+  melt(measure.vars = c("combo_MaxE", "Bliss_matrix", "Bliss_window", "HSA_matrix", "HSA_window")) %>%
+  full_join(All.data %>%
+              filter(CELL_LINE_NAME %in% c("A375", "HT-29", "PC-14", "U-2-OS", "SW620", "C32", "MHH-ES-1")) %>%
+              left_join(All.data %>%
+                          #mutate(Date = as.Date(DATE_CREATED, format = "%d-%b-%y")) %>%
+                          select(BARCODE,DRUGSET_ID)%>%
+                          distinct())  %>%
+              group_by(DRUGSET_ID,CELL_LINE_NAME, lib1_ID, Screen) %>%
+              summarise(lib1_MaxE = mean(lib1_MaxE),
+                        lib1_IC50_ln = mean(lib1_IC50_ln)) %>%
+              ungroup %>%
+              melt(measure.vars = c("lib1_MaxE", "lib1_IC50_ln"))) %>%
+  full_join(All.data %>%
+              filter(CELL_LINE_NAME %in% c("A375", "HT-29", "PC-14", "U-2-OS", "SW620", "C32", "MHH-ES-1")) %>%
+              left_join(All.data%>%
+                          #mutate(Date = as.Date(DATE_CREATED, format = "%d-%b-%y")) %>%
+                          select(BARCODE,DRUGSET_ID) %>%
+                          distinct())  %>%
+              group_by(DRUGSET_ID,CELL_LINE_NAME, lib2_ID, Screen) %>%
+              summarise(lib2_MaxE = mean(lib2_MaxE),
+                        lib2_IC50_ln = mean(lib2_IC50_ln)) %>%
+              ungroup %>%
+              melt(measure.vars = c("lib2_MaxE", "lib2_IC50_ln"))) %>%
+  rename(Metric = variable) %>%
+  #arrange(Date) %>%
+  group_by(CELL_LINE_NAME, lib1_ID,  lib2_ID, Screen, Metric) %>%
+  mutate(Replicate = 1:n()) %>%
+  ungroup() %>%
+  mutate(Reorder_Metric = case_when(Metric == "lib1_MaxE" ~ 1,
+                                    Metric == "lib1_IC50_ln" ~ 2,
+                                    Metric == "lib2_MaxE" ~ 3,
+                                    Metric == "lib2_IC50_ln" ~ 4,
+                                    Metric == "combo_MaxE" ~ 5,
+                                    Metric == "Bliss_matrix" ~ 6,
+                                    Metric == "Bliss_window" ~ 7,
+                                    Metric == "HSA_matrix" ~ 8,
+                                    Metric == "HSA_window" ~ 9),
+         Metric = case_when(Metric == "lib1_MaxE" ~ "lib1_MaxE",
+                            Metric == "lib1_IC50_ln" ~ "lib1_IC50_ln",
+                            Metric == "lib2_MaxE" ~ "lib2_MaxE",
+                            Metric == "lib2_IC50_ln" ~ "lib2_IC50_ln",
+                            Metric == "combo_MaxE" ~ "combo_MaxE",
+                            Metric == "Bliss_matrix" ~ "Bliss_matrix",
+                            Metric == "Bliss_window" ~ "Bliss_window",
+                            Metric == "HSA_matrix" ~ "HSA_matrix",
+                            Metric == "HSA_window" ~ "HSA_window")) %>%
+  arrange(Reorder_Metric) %>%
+  mutate(Metric = factor(Metric, unique(Metric)))
+
+
+# Calculate Pearson correlation coefficients for each bio rep pair
+# There might be easier ways, but...
+# full join the above data frame with itself to get all bio rep pairs
+# Remove self pairs (e.g. BR1 with BR1)
+# Remove duplicated pairs (e.g. BR1/BR2 = BR2/BR1)
+# group bio rep pair & metric and calculate pearson correlation coefficient
+
+# DO so by screen: All (join)/Breast/Colon/Pancreas
+
+Correlation.BioReps_Coefficients <- Correlation.BioReps_Average.Responses %>%
+  full_join(Correlation.BioReps_Average.Responses %>%
+              mutate(Screen = "All")) %>%
+  rename(Value_1 = value,
+         Replicate_1 = Replicate) %>%
+  full_join(Correlation.BioReps_Average.Responses %>%
+              full_join(Correlation.BioReps_Average.Responses %>%
+                          mutate(Screen = "All"))%>%
+              select(-DRUGSET_ID) %>%
+              rename(Value_2 = value,
+                     Replicate_2 = Replicate)) %>%
+  filter(!Replicate_1 == Replicate_2) %>%
+  group_by(CELL_LINE_NAME, lib1_ID, lib2_ID, Screen, Metric,
+           BioRep_Pair = paste(pmin(Replicate_1, Replicate_2), pmax(Replicate_1, Replicate_2), sep = "_")) %>%
+  filter(row_number() == 1) %>%
+  ungroup() %>%
+  group_by(BioRep_Pair, Metric, Screen) %>%
+  mutate(Correlation = cor(Value_1, Value_2, method = "pearson", use = "pairwise.complete.obs"),
+         p_value = cor.test(Value_1, Value_2, method = "pearson")$p.value) %>%
+  ungroup()
+
+
+
+knitr::kable(Correlation.BioReps_Coefficients %>%
+               group_by(Screen, Metric) %>%
+               summarise(Median_Pearson = round(median(Correlation), digits = 3)) %>%
+               ungroup() %>%
+               spread(Screen, Median_Pearson), 
+             align=c('l', 'l', 'l', 'c', 'c', 'c', 'c', 'c', 'c', 'c'), format="html")%>%
+  kable_styling(bootstrap_options=c("stripped","hover","condensed","bordered"), full_width=F, position="left", font_size=12)
+
+
+
+# Plot all pearson correlation coefficients by input metric, display as boxplot
+
+P_QC_Correlations.key.metrics <- ggplot(Correlation.BioReps_Coefficients %>%
+                                          filter(Screen == "All"),
+                                        aes(x = Metric, y = Correlation)) +
+  geom_boxplot() +
+  theme_bw() +
+  ylab("Pearson correlation coefficient") +
+  scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
+  theme(panel.grid = element_blank(),
+        axis.title.x = element_blank(),
+        axis.text.x = element_text(angle = 25, hjust = 1),
+        axis.title.y = element_text(size = 10)) 
+
+P_QC_Correlations.key.metrics
+
+
+
+pdf("S1M_BioReps_Corr of metrics_All data.pdf",
+    width = 4, height = 3)
+print(P_QC_Correlations.key.metrics)
+dev.off()
+
+```
+
+##Figure 2C - N.B. addition annotation added in Adobe Illustrator
+```{r}
+biomarkers<-read.csv("Input/Overall_ANOVA_results.csv")
+#Counting number of rows = number of tests run
+nrow(biomarkers)
+
+biomarkers$Analysis<-"Non-significant"
+
+#Subsetting significant biomarkers based on p value, FDR and positive and negative Glass deltas
+biomarkers_s<-subset(biomarkers, biomarkers$ANOVA_FEATURE_pval<=0.001)
+biomarkers_s<-subset(biomarkers_s, biomarkers_s$ANOVA_FEATURE_FDR<=10)
+biomarkers_s<-subset(biomarkers_s, biomarkers_s$FEATURE_neg_Glass_delta>=1)
+biomarkers_s<-subset(biomarkers_s, biomarkers_s$FEATURE_pos_Glass_delta>=1)
+'%ni%' <- Negate('%in%')
+
+biomarkers_n <-biomarkers[row.names(biomarkers) %ni% row.names(biomarkers_s),]
+
+#Labelling significant biomarkers by analysis type
+for (i in 1:nrow(biomarkers_s)){
+  if (biomarkers_s$Cancer_type[i]=="All" && biomarkers_s$Genotype[i]=="All"){
+    biomarkers_s$Analysis[i] ="Pan-cancer"
+  }
+  
+  if (biomarkers_s$Cancer_type[i]=="All" && biomarkers_s$Genotype[i]!="All"){
+    biomarkers_s$Analysis[i] ="Pan-cancer molecular basket"
+  }
+  
+  if (biomarkers_s$Cancer_type[i]!="All"){
+    biomarkers_s$Analysis[i] = "By cancer type"
+  }
+}
+
+biomarkers<-rbind(biomarkers_s, biomarkers_n)
+#Sort biomarkers by analysis type
+biomarkers<-biomarkers[order(biomarkers$Analysis),]
+#volcano plot
+p <- ggplot(data =biomarkers, aes(x=FEATURE_delta_MEAN_IC50, y=-log10(ANOVA_FEATURE_pval), col=Analysis)) + geom_point(size=0.5) + theme_light() + xlab("Effect size") + ylab("-log10 ANOVA feature p value") + theme(legend.position="bottom") + (theme(panel.grid = element_blank())) + ylim(0,34) + scale_color_manual(values=c("#df7c73", "#d3d3d3",  "#b49f36", "#5ea74c"))
+
+#pdf(file = "Volcano.pdf")
+p
+#dev.off()
+```
+
+
+
+##Figure S2A
+```{r}
+biomarkers_sig<-read.csv("Input/Overall_ANOVA_results_significant_large_effect_10_FDR_cutoff.csv")
+biomarkers_sig$list<-paste(biomarkers_sig$DRUG_ID, biomarkers_sig$FEATURE, biomarkers_sig$Features, biomarkers_sig$Input, sep="_")
+
+biomarkers_sig_pancan<-subset(biomarkers_sig, biomarkers_sig$Cancer_type=="All"&biomarkers_sig$Genotype=="All")
+biomarkers_sig_pancan<-biomarkers_sig_pancan[,-1:-27]
+
+biomarkers_sig_percan<-subset(biomarkers_sig,biomarkers_sig$Genotype=="All"&&biomarkers_sig$Cancer_type!="All")
+biomarkers_sig_percan<-biomarkers_sig_percan[,-1:-27]
+
+length(intersect(biomarkers_sig_pancan, biomarkers_sig_percan))
+length(setdiff(biomarkers_sig_pancan, biomarkers_sig_percan))
+length(setdiff(biomarkers_sig_percan, biomarkers_sig_pancan))
+```
+
+##Figure 2B
+```{r}
+biomarkers_sig_basket<-subset(biomarkers_sig, biomarkers_sig$Genotype!="All")
+biomarkers_sig_basket<-biomarkers_sig_basket[,-1:-27]
+
+length(intersect(biomarkers_sig_pancan, biomarkers_sig_basket))
+length(setdiff(biomarkers_sig_pancan, biomarkers_sig_basket))
+length(setdiff(biomarkers_sig_basket, biomarkers_sig_pancan))
+```
+
+##Figure S2C
+```{r}
+colobreast<-read.csv("Biomarker_inputs/GDSC010_Bliss_window_matrix.csv")
+mobem<-read.csv("Biomarker_inputs/COSMIC_KRAS_binarised_gene_expression_subset.csv")
+data1<-merge(colobreast, mobem, by="COSMIC_ID")
+library(ggplot2)
+data1$PIK3CG_up<-gsub("1", "Elevated PIK3CG, n=3", data1$PIK3CG_up)
+data1$PIK3CG_up<-gsub("0", "Non-elevated PIK3CG, n=53", data1$PIK3CG_up)
+
+data1$PIK3CG_up<-as.factor(data1$PIK3CG_up)
+data2<-data1
+p <- ggplot(data2, aes(x=data2$PIK3CG_up, y=data2$X24932545, colour= data2$PIK3CG_up, fill=data2$PIK3CG_up)) + theme_bw() +
+  geom_boxplot(alpha = 0.2) +
+  geom_jitter(alpha = 0.75, width = 0.2) +
+  guides(colour = F, fill = F) +
+  theme(panel.grid = element_blank()) + labs(title="",x="", y = "AZD8186 + palbociclib Bliss window") + theme(text = element_text(size = 18))
+
+p
+
+```
+
+##Figure S2D
+```{r}
+colobreast<-read.csv("Biomarker_inputs/GDSC010_lib2_MaxE_matrix.csv")
+mobem<-read.csv("Biomarker_inputs/COSMIC_KRAS_binarised_gene_expression_subset.csv")
+data1<-merge(colobreast, mobem, by="COSMIC_ID")
+library(ggplot2)
+data1$BCL2L11_up<-gsub("1", "Elevated BCL2L11, n=3", data1$BCL2L11_up)
+data1$BCL2L11_up<-gsub("0", "Non-elevated BCL2L11, n=53", data1$BCL2L11_up)
+
+data1$BCL2L11_up<-as.factor(data1$BCL2L11_up)
+data2<-data1
+p <- ggplot(data2, aes(x=data2$BCL2L11_up, y=data2$X24342495, colour= data2$BCL2L11_up, fill=data2$BCL2L11_up)) + theme_bw() +
+  geom_boxplot(alpha = 0.2) +
+  geom_jitter(alpha = 0.75, width = 0.2) +
+  guides(colour = F, fill = F) +
+  theme(panel.grid = element_blank()) + labs(title="",x="", y = "AZD4320 Emax") + theme(text = element_text(size = 18))
+
+p
+```
+
+##Figure S2E
+```{r}
+colobreast<-read.csv("Biomarker_inputs/GDSC010_lib2_MaxE_matrix.csv")
+mobem<-read.csv("Biomarker_inputs/COSMIC_KRAS_binarised_gene_expression_subset.csv")
+data1<-merge(colobreast, mobem, by="COSMIC_ID")
+library(ggplot2)
+data1$BCL2L11_up<-gsub("1", "Elevated BCL2L11, n=3", data1$BCL2L11_up)
+data1$BCL2L11_up<-gsub("0", "Non-elevated BCL2L11, n=53", data1$BCL2L11_up)
+
+data1$BCL2L11_up<-as.factor(data1$BCL2L11_up)
+data2<-data1
+p <- ggplot(data2, aes(x=data2$BCL2L11_up, y=data2$X24342497, colour= data2$BCL2L11_up, fill=data2$BCL2L11_up)) + theme_bw() +
+  geom_boxplot(alpha = 0.2) +
+  geom_jitter(alpha = 0.75, width = 0.2) +
+  guides(colour = F, fill = F) +
+  theme(panel.grid = element_blank()) + labs(title="",x="", y = "Venetoclax Emax") + theme(text = element_text(size = 18))
+
+p
+
+```
+
+##Figure S2F
+```{r}
+colobreast<-read.csv("Biomarker_inputs/GDSC010_lib2_MaxE_matrix.csv")
+mobem<-read.csv("Biomarker_inputs/COSMIC_TP53_binarised_gene_expression_subset.csv")
+data1<-merge(colobreast, mobem, by="COSMIC_ID")
+library(ggplot2)
+data1$BCL2_up<-gsub("1", "Elevated BCL2, n=7", data1$BCL2_up)
+data1$BCL2_up<-gsub("0", "Non-elevated BCL2, n=238", data1$BCL2_up)
+
+data1$BCL2_up<-as.factor(data1$BCL2_up)
+data2<-data1
+p <- ggplot(data2, aes(x=data2$BCL2_up, y=data2$X24342497, colour= data2$BCL2_up, fill=data2$BCL2_up)) + theme_bw() +
+  geom_boxplot(alpha = 0.2) +
+  geom_jitter(alpha = 0.75, width = 0.2) +
+  guides(colour = F, fill = F) +
+  theme(panel.grid = element_blank()) + labs(title="",x="", y = "Venetoclax Emax") + theme(text = element_text(size = 18))
+
+p
+```
