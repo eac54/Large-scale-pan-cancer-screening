@@ -264,7 +264,121 @@ plot(all_S1E$GDSC2_ln_IC50, all_S1E$Sandpiper_ln_IC50, xlab="ln(IC50) in GDSC2",
 
 ```
 
-##Figure S1I
+##Figure S1B-C
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plyr)
+library(reshape2)
+library(scales)
+library(dplyr)
+library(ggplot2)
+library(superheat)
+library(rowr)
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(knitr)
+library(lubridate)
+library(tidyr)
+library(RColorBrewer)
+library(reshape2)
+library(knitr)
+library(kableExtra)
+library(scales)
+library(ggpubr)
+library(stats)
+library(ggridges)
+library(hexbin)
+set.seed(13)
+```
+
+### Data upload
+```{r}
+sand1<-read.csv("Input/sandpiper-01_matrix_results.csv")
+sand1$screen<-"Sandpiper_1"
+g7<-read.csv("Input/gdsc-007_matrix_results.csv")
+g7$screen<-"GDSC007"
+g8<-read.csv("Input/gdsc-008_matrix_results.csv")
+g8$screen<-"GDSC008"
+g9<-read.csv("Input/gdsc-009_matrix_results.csv")
+g9$screen<-"GDSC009"
+g10<-read.csv("Input/gdsc-010_matrix_results.csv")
+g10$screen<-"GDSC010"
+
+data<-rbind(sand1, g7, g8, g9, g10)
+```
+
+###Comparison with GDSC 1 monotherapies - similar protocol, correlation of 74.30%
+```{r}
+#Read in previously published single agent ln_IC50s
+gdsc1<-read.csv("Input/GDSC1_fitted_dose_response_24Jul22.csv")
+gdsc1<-select(gdsc1, SANGER_MODEL_ID, DRUG_ID, LN_IC50)
+names(gdsc1)[3]<-"GDSC1_ln_IC50"
+#Create compound variable of cell line ID and drug ID for matching to combination single agent ln IC50s
+gdsc1$test<-paste(gdsc1$SANGER_MODEL_ID, gdsc1$DRUG_ID, sep="_")
+gdsc1<-gdsc1[,-1:-2]
+#Aggregate replicates by mean
+gdsc1<-aggregate(x = gdsc1$GDSC1_ln_IC50,
+                 by = list(gdsc1$test),              
+                 FUN = mean)   
+names(gdsc1)[2]<-"GDSC1_ln_IC50"
+names(gdsc1)[1]<-"test"
+
+all_S1E<-merge(data_S1E, gdsc1, by="test")
+
+#correlation between combination study ln IC50s and previously-published ln IC50s
+cor(all_S1E$Sandpiper_ln_IC50, all_S1E$GDSC1_ln_IC50)
+
+plot(all_S1E$GDSC1_ln_IC50, all_S1E$Sandpiper_ln_IC50, xlab="ln(IC50) in GDSC1", ylab="ln(IC50) for single agents in this study", pch=20)
+
+#699 cell lines in common, two compounds in common
+```
+
+###PRISM
+
+There are 13 drugs and 346 cell lines in common between the two screens. There is a correlation of 51.3%, where data is available. 
+```{r}
+prism<-read.csv("Input/PRISM/Drug_sensitivity_(PRISM_Repurposing_Primary_Screen).csv")
+row.names(prism)<-prism[,1]
+common_drugs<-read.csv("PRISM_Sanger_mapping.csv")
+
+NameList <- unique(common_drugs$PRISM_name)
+idx <- match(NameList, names(prism))
+NewDF <- prism[,idx] 
+NewDF$BROAD_ID<-row.names(NewDF)
+test<-melt(NewDF)
+names(test)[2]<-"PRISM_name"
+names(test)[3]<-"PRISM_ln_IC50"
+
+test<-merge(test, common_drugs, by= "PRISM_name")
+test<-test[,-1]
+cmp<-read.csv("Input/PRISM/model_list_20230608.csv")
+cmp<-select(cmp, "model_id", "BROAD_ID")
+test<-merge(test, cmp, by= "BROAD_ID")
+test<-test[,-1]
+test$test<-paste(test$model_id, test$Sanger.ID, sep="_")
+test<-test[,-2:-4]
+
+prism_results<-aggregate(x = test$PRISM_ln_IC50,
+                 by = list(test$test),              
+                 FUN = mean)   
+names(prism_results)[2]<-"PRISM_ln_IC50"
+names(prism_results)[1]<-"test"
+
+
+all_prism<-merge(data_S1E, prism_results, by="test")
+all_prism<-all_prism[complete.cases(all_prism), ]
+
+#correlation between combination study ln IC50s and previously-published ln IC50s
+cor(all_prism$Sandpiper_ln_IC50, all_prism$PRISM_ln_IC50)
+
+plot(all_prism$PRISM_ln_IC50, all_prism$Sandpiper_ln_IC50, xlab="ln(IC50) in PRISM", ylab="ln(IC50) for single agents in this study", pch=20)
+
+```
+
+
+
+##Figure S1K
 ```{r}
 data_1_scatter<-data
 data_2_scatter<-data
@@ -307,20 +421,20 @@ ggplot(a, aes(lib1_pathway, lib2_pathway)) + geom_point(aes(size=Frequency))+ th
 a
 ```
 
-##Figure S1G
+##Figure S1I
 ```{r}
 plot(data_scatter$Bliss_matrix, data_scatter$combo_MaxE, xlab="Bliss excess", ylab="Combo Emax", pch=20)
 abline(v = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
 ```
 
-##Figure S1H
+##Figure S1J
 ```{r}
 plot(data_scatter$HSA_matrix, data_scatter$combo_MaxE, xlab="HSA excess", ylab="Combo Emax", pch=20)
 abline(v = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
 
 ```
 
-##Figure S1F
+##Figure S1H
 ```{r}
 plot(data_scatter$Bliss_matrix, data_scatter$HSA_matrix, xlab="Bliss excess", ylab="HSA excess", pch=20)
 abline(h = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
@@ -328,13 +442,13 @@ abline(v = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
 cor(data_scatter$Bliss_matrix, data_scatter$HSA_matrix)
 ```
 
-##Figure S1J
+##Figure S1L
 ```{r}
 plot(data_scatter$Single_agent_Emax, data_scatter$Bliss_matrix, xlab="Single agent Emax", ylab="Bliss excess", pch=20)
 abline(h = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
 ```
 
-##Figure S1K
+##Figure S1M
 ```{r}
 a<-read.csv("Input/plate_qc_Sandpiper-01_13May22.csv")
 b<-read.csv("Input/plate_qc_Sandpiper-02_13May22.csv")
@@ -351,7 +465,8 @@ p
 median(data_S1L$CV_NC1)
 range(data_S1L$CV_NC1)
 ```
-##Figure S1L
+
+##Figure S1N
 ```{r}
 data_S1L_1<-data_S1L$Z_NC1_PC1
 data_S1L_2<-data_S1L$Z_NC1_PC2
@@ -382,7 +497,7 @@ max(pos$Value) - min(pos$Value)
 ```
 
 
-##Figure S1M
+##Figure S1O
 ```{r}
 library(ggplot2)
 library(dplyr)
@@ -532,7 +647,7 @@ P_QC_Correlations.key.metrics
 
 
 
-pdf("S1M_BioReps_Corr of metrics_All data.pdf",
+pdf("S1O_BioReps_Corr of metrics_All data.pdf",
     width = 4, height = 3)
 print(P_QC_Correlations.key.metrics)
 dev.off()
@@ -584,7 +699,7 @@ p
 
 
 
-##Figure S2A
+##Figure S3A
 ```{r}
 biomarkers_sig<-read.csv("Input/Overall_ANOVA_results_significant_large_effect_10_FDR_cutoff.csv")
 biomarkers_sig$list<-paste(biomarkers_sig$DRUG_ID, biomarkers_sig$FEATURE, biomarkers_sig$Features, biomarkers_sig$Input, sep="_")
@@ -600,7 +715,7 @@ length(setdiff(biomarkers_sig_pancan, biomarkers_sig_percan))
 length(setdiff(biomarkers_sig_percan, biomarkers_sig_pancan))
 ```
 
-##Figure 2B
+##Figure S3B
 ```{r}
 biomarkers_sig_basket<-subset(biomarkers_sig, biomarkers_sig$Genotype!="All")
 biomarkers_sig_basket<-biomarkers_sig_basket[,-1:-27]
@@ -610,7 +725,7 @@ length(setdiff(biomarkers_sig_pancan, biomarkers_sig_basket))
 length(setdiff(biomarkers_sig_basket, biomarkers_sig_pancan))
 ```
 
-##Figure S2C
+##Figure S3C
 ```{r}
 colobreast<-read.csv("Biomarker_inputs/GDSC010_Bliss_window_matrix.csv")
 mobem<-read.csv("Biomarker_inputs/COSMIC_KRAS_binarised_gene_expression_subset.csv")
@@ -631,7 +746,7 @@ p
 
 ```
 
-##Figure S2D
+##Figure S3D
 ```{r}
 colobreast<-read.csv("Biomarker_inputs/GDSC010_lib2_MaxE_matrix.csv")
 mobem<-read.csv("Biomarker_inputs/COSMIC_KRAS_binarised_gene_expression_subset.csv")
@@ -651,7 +766,7 @@ p <- ggplot(data2, aes(x=data2$BCL2L11_up, y=data2$X24342495, colour= data2$BCL2
 p
 ```
 
-##Figure S2E
+##Figure S3E
 ```{r}
 colobreast<-read.csv("Biomarker_inputs/GDSC010_lib2_MaxE_matrix.csv")
 mobem<-read.csv("Biomarker_inputs/COSMIC_KRAS_binarised_gene_expression_subset.csv")
@@ -672,7 +787,7 @@ p
 
 ```
 
-##Figure S2F
+##Figure S3F
 ```{r}
 colobreast<-read.csv("Biomarker_inputs/GDSC010_lib2_MaxE_matrix.csv")
 mobem<-read.csv("Biomarker_inputs/COSMIC_TP53_binarised_gene_expression_subset.csv")
@@ -691,3 +806,156 @@ p <- ggplot(data2, aes(x=data2$BCL2_up, y=data2$X24342497, colour= data2$BCL2_up
 
 p
 ```
+
+
+
+## Suplementary Fig 2A
+```{r}
+all_data<- read.csv("Supplementary Table 3. Single and combination metrics.csv", header=TRUE)
+
+### set libraries
+library(ggplot2)
+library(cowplot)
+library(dplyr)
+
+library(ggpubr)
+library(colorspace)
+
+library(tidyverse)
+library(gprofiler2)
+library(tibble)
+library(reshape2)
+
+library(pheatmap)
+
+
+```
+## Calculate the number of combos for full data matrix 
+```{r}
+
+## create empty columns
+
+all_data$LIB1 = ""
+all_data$LIB2 = ""
+all_data$lib2_pathway<-gsub("Other", "Chemotherapy", all_data$Compound2_pathway)
+all_data$Compound1_pathway<-as.character(all_data$Compound1_pathway)
+all_data$Compound2_pathway<-as.character(all_data$Compound2_pathway)
+
+for (i in 1:nrow(all_data)){
+  #Display pathway pairings in alphabetical order, i.e. only gives us the top triangle of the matrix
+  all_data$LIB1[i]<-pmin(all_data$Compound1_pathway[i], all_data$Compound2_pathway[i])
+  all_data$LIB2[i]<-pmax(all_data$Compound1_pathway[i], all_data$Compound2_pathway[i])
+}
+
+
+
+
+## grouping for pathways and defining the ns
+#Note - this is not the same as 1C as 1C only contains drug combo info. The following analysis contains drug combo-cell line pairs for comparison with synergy calls
+
+all_data_table<-table(all_data$LIB1, all_data$LIB2)
+all_data_table<-as.data.frame(all_data_table)
+names(all_data_table)<-c("lib1_pathway", "lib2_pathway", "Frequency")
+
+ggplot(all_data_table, aes(lib1_pathway, lib2_pathway)) + geom_point(aes(size=Frequency))+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(size = "Number of cell line-combinations screened", x= "Pathway 1", y="Pathway 2") +scale_size_area( max_size = 10)
+
+#Table of number of pathway combinations
+all_data_table
+```
+
+
+
+
+## Filter for synergistic combos
+
+Threshold used
+HSA> 0.1
+Emax >0.5
+
+```{r}
+tx<- which(all_data$combo_MaxE>0.5 & all_data$HSA_matrix>0.1, arr.ind = TRUE)
+
+filtered_data<-all_data[tx,] 
+
+filtered_data_table<-table(filtered_data$LIB1, filtered_data$LIB2)
+filtered_data_table<-as.data.frame(filtered_data_table)
+names(filtered_data_table)<-c("lib1_pathway", "lib2_pathway", "Frequency")
+
+ggplot(filtered_data_table, aes(lib1_pathway, lib2_pathway)) + geom_point(aes(size=Frequency))+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(size = "Number of active and synergistic \ncell line-combinations", x= "Pathway 1", y="Pathway 2") +scale_size_area( max_size = 10)
+
+#Table of number of pathway combinations
+filtered_data_table
+
+```
+
+## Randomising HSA and combo Emax values, and refiltering to synergistic combos 
+
+```{r}
+#Randomly scramble HSA_matrix and  
+set.seed(13)
+randomised_data<-all_data
+randomised_data$HSA_matrix<-sample(randomised_data$HSA_matrix, replace = FALSE)
+randomised_data$combo_MaxE<-sample(randomised_data$combo_MaxE, replace = FALSE)
+
+tx2<- which(randomised_data$combo_MaxE>0.5 & randomised_data$HSA_matrix>0.1, arr.ind = TRUE)
+
+randomised_filtered_data<-randomised_data[tx2,] 
+
+randomised_filtered_data_table<-table(randomised_filtered_data$LIB1, randomised_filtered_data$LIB2)
+randomised_filtered_data_table<-as.data.frame(randomised_filtered_data_table)
+names(randomised_filtered_data_table)<-c("lib1_pathway", "lib2_pathway", "Frequency")
+
+ggplot(randomised_filtered_data_table, aes(lib1_pathway, lib2_pathway)) + geom_point(aes(size=Frequency))+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(size = "Number of active and synergistic \nrandomised cell line-combinations", x= "Pathway 1", y="Pathway 2") +scale_size_area( max_size = 10)
+
+#Table of number of pathway combinations
+randomised_filtered_data_table
+
+```
+
+## define enrichment for pathways over randomness
+
+1. Pathway combos with syn vs total ratio 'Es = ncombo/Ntotal' for each pathway category - Es (enrichment for synergy)
+2. Pathway combos with weight from bootstrap 'Er = nrand/Ntotal' for each pathway category - Er (enrichment by random)
+3. Colour blob in different colour if Es > Er
+
+
+```{r}
+
+temp<- all_data_table
+temp[,3]<- filtered_data_table[,3]/all_data_table[,3]
+Es<-temp
+## remove the NaN and substitute with 0 in list
+is.nan.data.frame <- function(x)
+do.call(cbind, lapply(x, is.nan))
+Es[is.nan(Es)] <- 0
+
+
+temp<- all_data_table
+temp[,3]<- randomised_filtered_data_table[,3]/all_data_table[,3]
+Er<-temp
+## remove the NaN and substitute with 0
+Er[is.nan(Er)] <- 0
+
+
+## merging the data for plotting 
+
+full_Er_Es<- cbind(Es,Er[,3])
+colnames(full_Er_Es)[3:4]<-c("Es","Er")
+
+### drowing teh matrix with enrichment score
+ggplot(full_Er_Es, aes(lib1_pathway, lib2_pathway)) + geom_point(aes(size=Es, colour = (Es > Er)))+
+  scale_colour_manual(values =c( "black","blue")) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  labs(size = "Number of active and synergistic \nrandomised cell line-combinations", x= "Pathway 1", y="Pathway 2") +
+  scale_size_area( max_size = 4)
+
+
+ggplot(full_Er_Es, aes(lib1_pathway, lib2_pathway)) + geom_point(aes(size=Es/Er, colour = (Es/Er>1)))+
+  scale_colour_manual(values =c( "black","blue")) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  labs(size = "Fraction of cell line-combination pairs \nenriched for synergy", x= "Pathway 1", y="Pathway 2") +
+  scale_size_area( max_size = 4)
+
+```
+
+
