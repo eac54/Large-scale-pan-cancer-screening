@@ -1,0 +1,105 @@
+---
+title: "Figure 1"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plyr)
+library(reshape2)
+library(scales)
+library(dplyr)
+library(ggplot2)
+library(superheat)
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(knitr)
+library(lubridate)
+library(tidyr)
+library(RColorBrewer)
+library(reshape2)
+library(knitr)
+library(kableExtra)
+library(scales)
+library(ggpubr)
+library(stats)
+library(ggridges)
+library(hexbin)
+set.seed(13)
+```
+
+
+## Data import
+Data files can be downloaded from Figshare (link tbc).
+```{r}
+sand1<-read.csv("Input/sandpiper-01_matrix_results.csv")
+sand1$screen<-"Sandpiper_1"
+g7<-read.csv("Input/gdsc-007_matrix_results.csv")
+g7$screen<-"GDSC007"
+g8<-read.csv("Input/gdsc-008_matrix_results.csv")
+g8$screen<-"GDSC008"
+g9<-read.csv("Input/gdsc-009_matrix_results.csv")
+g9$screen<-"GDSC009"
+g10<-read.csv("Input/gdsc-010_matrix_results.csv")
+g10$screen<-"GDSC010"
+
+data<-rbind(sand1, g7, g8, g9, g10)
+```
+
+## Fig 1B
+Note - the figure in the publication contains additional annotation added in Adobe Illustrator.
+```{r}
+cell_lines<-select(data, CELL_LINE_NAME, COSMIC_ID, SIDM, TISSUE, CANCER_TYPE)
+cell_lines<-distinct(cell_lines)
+
+#Making frequency table of cell line cancer types
+cell_lines_freq<-cell_lines %>%
+  group_by(CANCER_TYPE) %>%
+  summarize(Freq=n()) %>%
+  arrange(desc(Freq))
+
+
+ggplot(cell_lines_freq, aes(x="", y=Freq, fill=reorder(CANCER_TYPE, Freq))) +
+  geom_bar(stat="identity", width=1, color="white") +
+  coord_polar("y", start=0) +
+  theme_void() + 
+  theme(legend.position="none") 
+
+```
+
+## Figure 1C
+```{r}
+data_1C<-select(data, lib1_ID, lib1_pathway, lib2_ID, lib2_pathway)
+#Identify distinct drug combinations
+data_1C<-distinct(data_1C)
+data_1C$LIB1<-""
+data_1C$LIB2<-""
+data_1C$lib2_pathway<-gsub("Other", "Chemotherapy", data_1C$lib2_pathway)
+data_1C$lib1_pathway<-as.character(data_1C$lib1_pathway)
+data_1C$lib2_pathway<-as.character(data_1C$lib2_pathway)
+for (i in 1:nrow(data_1C)){
+  #Display pathway pairings in alphabetical order
+  data_1C$LIB1[i]<-pmin(data_1C$lib1_pathway[i], data_1C$lib2_pathway[i])
+  data_1C$LIB2[i]<-pmax(data_1C$lib1_pathway[i], data_1C$lib2_pathway[i])
+}
+
+
+a<-table(data_1C$LIB1, data_1C$LIB2)
+a<-as.data.frame(a)
+names(a)<-c("lib1_pathway", "lib2_pathway", "Frequency")
+
+ggplot(a, aes(lib1_pathway, lib2_pathway)) + geom_point(aes(size=Frequency))+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(size = "Number of combinations", x= "Pathway 1", y="Pathway 2") +scale_size_area( max_size = 10)
+```
+
+## Figure 1D
+See separate script for generating biomarker input files.
+```{r}
+heatmap<-read.csv("Biomarker_inputs/Sand1-GDSC010_Combo_MaxE_matrix.csv")
+rnames <- heatmap[,1]
+mat_data <- data.matrix(heatmap[,2:ncol(heatmap)])
+rownames(mat_data) <- rnames
+
+superheat(mat_data, scale = FALSE, row.dendrogram = TRUE, col.dendrogram = TRUE, title = "Combo Emax no scaling", row.title = "Cell lines", column.title = "Drug combinations", legend.text.size = 7, heat.na.col = "white", bottom.label.text.angle = 90, bottom.label.text.size = 2)
+
+```
