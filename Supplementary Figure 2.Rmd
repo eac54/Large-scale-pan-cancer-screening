@@ -1,0 +1,262 @@
+---
+title: "Supplementary Figure 2"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plyr)
+library(reshape2)
+library(scales)
+library(dplyr)
+library(ggplot2)
+library(superheat)
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(knitr)
+library(lubridate)
+library(tidyr)
+library(RColorBrewer)
+library(reshape2)
+library(knitr)
+library(kableExtra)
+library(scales)
+library(ggpubr)
+library(stats)
+library(ggridges)
+library(hexbin)
+set.seed(13)
+```
+
+
+## Data import
+Data files can be downloaded from Figshare (link tbc).
+```{r}
+sand1<-read.csv("Input/sandpiper-01_matrix_results.csv")
+sand1$screen<-"Sandpiper_1"
+g7<-read.csv("Input/gdsc-007_matrix_results.csv")
+g7$screen<-"GDSC007"
+g8<-read.csv("Input/gdsc-008_matrix_results.csv")
+g8$screen<-"GDSC008"
+g9<-read.csv("Input/gdsc-009_matrix_results.csv")
+g9$screen<-"GDSC009"
+g10<-read.csv("Input/gdsc-010_matrix_results.csv")
+g10$screen<-"GDSC010"
+
+data<-rbind(sand1, g7, g8, g9, g10)
+```
+
+## Figure S2A
+Comparison of common combinations screened in this study and in [Jaaks and Coker et al, Nature 2022](https://www.nature.com/articles/s41586-022-04437-2). Data downloaded from [Figshare](https://figshare.com/projects/Effective_drug_combinations_in_breast_colon_and_pancreatic_cancer_cells/117084). 
+```{r}
+data$combo_id<-paste(data$lib1_name, data$lib2_name, sep=" + ")
+unique(data$combo_id)
+
+data<-subset(data, data$combo_id=="Lapatinib + MK-2206"|data$combo_id=="Trametinib + Taselisib"|data$combo_id=="Lapatinib + Crizotinib"|data$combo_id=="Taselisib + SCH772984"|data$combo_id=="Palbociclib + Venetoclax"|data$combo_id=="Olaparib + Venetoclax"|data$combo_id=="Crizotinib + Dasatinib"|data$combo_id=="Dasatinib + Trametinib"|data$combo_id=="Venetoclax + Lapatinib")
+data<-subset(data, data$TISSUE=="Breast"|data$TISSUE=="Pancreas"|data$TISSUE=="Large Intestine")
+data$Matrix_synergy="False"
+for (i in 1:nrow(data)){
+  if (data$HSA_matrix[i]>0.1){
+    data$Matrix_synergy[i]<-"True"
+  }
+}
+
+data$lib1_name<-as.character(data$lib1_name)
+data$lib2_name<-as.character(data$lib2_name)
+
+data$combo_id_alphabetical<-paste(data$SIDM,
+                                    pmin(data$lib1_name, data$lib2_name), pmax(data$lib1_name, data$lib2_name), sep=" + ")
+
+
+data_no<-read.csv("Input/Jaaks et al/Original screen_All tissues_fitted data.csv")
+data_nv<-read.csv("Input/Jaaks et al/Validationscreen_Alltissues_fitteddata.csv")
+data_n<-rbind(data_no, data_nv)
+data_n$combo_id<-paste(data_n$LIBRARY_NAME, data_n$ANCHOR_NAME, sep=" + ")
+data_n$ANCHOR_NAME<-as.character(data_n$ANCHOR_NAME)
+data_n$LIBRARY_NAME<-as.character(data_n$LIBRARY_NAME)
+data_n$combo_id_alphabetical<-paste(data_n$SIDM,
+                                    pmin(data_n$ANCHOR_NAME, data_n$LIBRARY_NAME), pmax(data_n$ANCHOR_NAME, data_n$LIBRARY_NAME), sep=" + ")
+
+data_n<-subset(data_n, data_n$combo_id=="Lapatinib + MK-2206"|data_n$combo_id=="MK-2206 + Lapatinib"|data_n$combo_id=="Trametinib + Taselisib"|data_n$combo_id=="Taselisib + Trametinib"|data_n$combo_id=="Lapatinib + Crizotinib"|data_n$combo_id=="Crizotinib + Lapatinib"|data_n$combo_id=="Taselisib + SCH772984"|data_n$combo_id=="SCH772984 + Taselisib"|data_n$combo_id=="Venetoclax + Palbociclib"|data_n$combo_id=="Venetoclax + Olaparib"|data_n$combo_id=="Crizotinib + Dasatinib"|data_n$combo_id=="Dasatinib + Crizotinib"|data_n$combo_id=="Dasatinib + Trametinib"|data_n$combo_id=="Trametinib + Dasatinib"|data_n$combo_id=="Venetoclax + Lapatinib")
+
+data_final<-merge(data_n, data, by="combo_id_alphabetical")
+data_final$Synergy<-as.character(data_final$Synergy)
+unique(data_final$CELL_LINE_NAME.x)
+
+counts <- ddply(data_final, .(data_final$Matrix_synergy, data_final$Synergy), nrow)
+names(counts) <- c("Matrix_synergy", "Anchored_synergy", "Freq")
+counts$Percent<-counts$Freq/nrow(data_final)
+counts
+```
+
+## Figure S2B
+Analyse the Tab3 from supplementary data. 
+
+1. Take all synergistic combos with targets and pathways as per the threshold 0.1 HSA, 0.5 Emax 'n'
+  
+
+2. Calculate the total number of combos per pathways to full data matrix as in fig 1c 'Nc'
+  Taking number of synergistic combos 'n' , and generate random numbers (from 1-n) assigned to each pathway combo
+  Bootstrap 10 fold with a upper limit of 'n' and calculate average for each pathway combo category (nb)    
+
+3. Generate 2 figs similar to 1c
+
+Pathway combos for only syn combos evaluate the number for each category 'nc'
+
+Pathway combos with syn vs total ratio 'Es = nc/Nc' for each pathway category - Es (enrichment for synergy)
+
+Pathway combos with weight from bootstrap 'Er = nb/Nc' for each pathway category - Er (enrichment by random)
+  Colour blob in different colour if Es > Er
+
+
+### Loading the data 
+```{r}
+all_data<- read.csv("Supplementary Table 3. Single and combination metrics.csv", header=TRUE)
+
+### set libraries
+library(ggplot2)
+library(cowplot)
+library(dplyr)
+
+library(ggpubr)
+library(colorspace)
+
+library(tidyverse)
+library(gprofiler2)
+library(tibble)
+library(reshape2)
+
+library(pheatmap)
+
+
+```
+
+### Calculate the number of combos for full data matrix 
+```{r}
+
+## create empty columns
+
+all_data$LIB1 = ""
+all_data$LIB2 = ""
+all_data$lib2_pathway<-gsub("Other", "Chemotherapy", all_data$Compound2_pathway)
+all_data$Compound1_pathway<-as.character(all_data$Compound1_pathway)
+all_data$Compound2_pathway<-as.character(all_data$Compound2_pathway)
+
+for (i in 1:nrow(all_data)){
+  #Display pathway pairings in alphabetical order, i.e. only gives us the top triangle of the matrix
+  all_data$LIB1[i]<-pmin(all_data$Compound1_pathway[i], all_data$Compound2_pathway[i])
+  all_data$LIB2[i]<-pmax(all_data$Compound1_pathway[i], all_data$Compound2_pathway[i])
+}
+
+
+
+
+## grouping for pathways and defining the ns
+#Note - this is not the same as 1C as 1C only contains drug combo info. The following analysis contains drug combo-cell line pairs for comparison with synergy calls
+
+all_data_table<-table(all_data$LIB1, all_data$LIB2)
+all_data_table<-as.data.frame(all_data_table)
+names(all_data_table)<-c("lib1_pathway", "lib2_pathway", "Frequency")
+
+ggplot(all_data_table, aes(lib1_pathway, lib2_pathway)) + geom_point(aes(size=Frequency))+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(size = "Number of cell line-combinations screened", x= "Pathway 1", y="Pathway 2") +scale_size_area( max_size = 10)
+
+#Table of number of pathway combinations
+all_data_table
+```
+
+
+### Filter for synergistic combos
+
+Threshold used
+HSA> 0.1
+Emax >0.5
+
+```{r}
+tx<- which(all_data$combo_MaxE>0.5 & all_data$HSA_matrix>0.1, arr.ind = TRUE)
+
+filtered_data<-all_data[tx,] 
+
+filtered_data_table<-table(filtered_data$LIB1, filtered_data$LIB2)
+filtered_data_table<-as.data.frame(filtered_data_table)
+names(filtered_data_table)<-c("lib1_pathway", "lib2_pathway", "Frequency")
+
+ggplot(filtered_data_table, aes(lib1_pathway, lib2_pathway)) + geom_point(aes(size=Frequency))+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(size = "Number of active and synergistic \ncell line-combinations", x= "Pathway 1", y="Pathway 2") +scale_size_area( max_size = 10)
+
+#Table of number of pathway combinations
+filtered_data_table
+
+```
+
+### Randomising HSA and combo Emax values, and refiltering to synergistic combos 
+
+```{r}
+#Randomly scramble HSA_matrix and  
+set.seed(13)
+randomised_data<-all_data
+randomised_data$HSA_matrix<-sample(randomised_data$HSA_matrix, replace = FALSE)
+randomised_data$combo_MaxE<-sample(randomised_data$combo_MaxE, replace = FALSE)
+
+tx2<- which(randomised_data$combo_MaxE>0.5 & randomised_data$HSA_matrix>0.1, arr.ind = TRUE)
+
+randomised_filtered_data<-randomised_data[tx2,] 
+
+randomised_filtered_data_table<-table(randomised_filtered_data$LIB1, randomised_filtered_data$LIB2)
+randomised_filtered_data_table<-as.data.frame(randomised_filtered_data_table)
+names(randomised_filtered_data_table)<-c("lib1_pathway", "lib2_pathway", "Frequency")
+
+ggplot(randomised_filtered_data_table, aes(lib1_pathway, lib2_pathway)) + geom_point(aes(size=Frequency))+ theme(axis.text.x = element_text(angle = 90, hjust = 1)) + labs(size = "Number of active and synergistic \nrandomised cell line-combinations", x= "Pathway 1", y="Pathway 2") +scale_size_area( max_size = 10)
+
+#Table of number of pathway combinations
+randomised_filtered_data_table
+
+```
+
+### Define enrichment for pathways over randomness
+
+1. Pathway combos with syn vs total ratio 'Es = ncombo/Ntotal' for each pathway category - Es (enrichment for synergy)
+2. Pathway combos with weight from bootstrap 'Er = nrand/Ntotal' for each pathway category - Er (enrichment by random)
+3. Colour blob in different colour if Es > Er
+
+
+```{r}
+
+temp<- all_data_table
+temp[,3]<- filtered_data_table[,3]/all_data_table[,3]
+Es<-temp
+## remove the NaN and substitute with 0 in list
+is.nan.data.frame <- function(x)
+do.call(cbind, lapply(x, is.nan))
+Es[is.nan(Es)] <- 0
+
+
+temp<- all_data_table
+temp[,3]<- randomised_filtered_data_table[,3]/all_data_table[,3]
+Er<-temp
+## remove the NaN and substitute with 0
+Er[is.nan(Er)] <- 0
+
+
+## merging the data for plotting 
+
+full_Er_Es<- cbind(Es,Er[,3])
+colnames(full_Er_Es)[3:4]<-c("Es","Er")
+
+### drowing teh matrix with enrichment score
+ggplot(full_Er_Es, aes(lib1_pathway, lib2_pathway)) + geom_point(aes(size=Es, colour = (Es > Er)))+
+  scale_colour_manual(values =c( "black","blue")) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  labs(size = "Number of active and synergistic \nrandomised cell line-combinations", x= "Pathway 1", y="Pathway 2") +
+  scale_size_area( max_size = 4)
+
+
+ggplot(full_Er_Es, aes(lib1_pathway, lib2_pathway)) + geom_point(aes(size=Es/Er, colour = (Es/Er>1)))+
+  scale_colour_manual(values =c( "black","blue")) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+  labs(size = "Fraction of cell line-combination pairs \nenriched for synergy", x= "Pathway 1", y="Pathway 2") +
+  scale_size_area( max_size = 4)
+
+```
+
+
+

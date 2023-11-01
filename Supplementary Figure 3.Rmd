@@ -1,0 +1,141 @@
+---
+title: "Supplementary Figure 3"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plyr)
+library(reshape2)
+library(scales)
+library(dplyr)
+library(ggplot2)
+library(superheat)
+library(ggplot2)
+library(magrittr)
+library(knitr)
+library(lubridate)
+library(tidyr)
+library(RColorBrewer)
+library(reshape2)
+library(knitr)
+library(kableExtra)
+library(scales)
+library(ggpubr)
+library(stats)
+library(ggridges)
+library(hexbin)
+set.seed(13)
+```
+
+
+## Figure S3A&B
+Overall ANOVA results are availble for download from Figshare (link tbc).
+```{r}
+biomarkers<-read.csv("Input/Overall_ANOVA_results_significant_large_effect_10_FDR_cutoff.csv")
+pancan<-subset(biomarkers, biomarkers$Cancer_type=="All")
+pancan<-subset(pancan, pancan$Genotype=="All")
+pancan$list<-paste(pancan$DRUG_ID, pancan$FEATURE, pancan$Features, pancan$Input, sep="_")
+pancan<-select(pancan, list)
+
+basket<-subset(biomarkers, biomarkers$Cancer_type=="All")
+basket<-subset(basket, basket$Genotype!="All")
+basket$list<-paste(basket$DRUG_ID, basket$FEATURE, basket$Features, basket$Input, sep="_")
+basket<-select(basket, list)
+
+cancer_type<-subset(biomarkers, biomarkers$Cancer_type!="All")
+cancer_type$list<-paste(cancer_type$DRUG_ID, cancer_type$FEATURE, cancer_type$Features, cancer_type$Input, sep="_")
+cancer_type<-select(cancer_type, list)
+
+length(intersect(pancan$list, cancer_type$list))
+length(setdiff(pancan$list, cancer_type$list))
+length(setdiff(cancer_type$list, pancan$list))
+
+length(intersect(pancan$list, basket$list))
+length(setdiff(pancan$list, basket$list))
+length(setdiff(basket$list, pancan$list))
+```
+
+## Figure S3C
+```{r}
+colobreast<-read.csv("Biomarker_inputs/GDSC010_Bliss_window_matrix.csv")
+mobem<-read.csv("Biomarker_inputs/COSMIC_KRAS_binarised_gene_expression_subset.csv")
+data1<-merge(colobreast, mobem, by="COSMIC_ID")
+library(ggplot2)
+data1$PIK3CG_up<-gsub("1", "Elevated PIK3CG, n=3", data1$PIK3CG_up)
+data1$PIK3CG_up<-gsub("0", "Non-elevated PIK3CG, n=53", data1$PIK3CG_up)
+
+data1$PIK3CG_up<-as.factor(data1$PIK3CG_up)
+data2<-data1
+p <- ggplot(data2, aes(x=data2$PIK3CG_up, y=data2$X24932545, colour= data2$PIK3CG_up, fill=data2$PIK3CG_up)) + theme_bw() +
+  geom_boxplot(alpha = 0.2) +
+  geom_jitter(alpha = 0.75, width = 0.2) +
+  guides(colour = F, fill = F) +
+  theme(panel.grid = element_blank()) + labs(title="",x="", y = "AZD8186 + palbociclib Bliss window") + theme(text = element_text(size = 18))
+
+p
+
+```
+
+## Figure S3D
+```{r}
+colobreast<-read.csv("Biomarker_inputs/GDSC010_lib2_MaxE_matrix.csv")
+mobem<-read.csv("Biomarker_inputs/COSMIC_KRAS_binarised_gene_expression_subset.csv")
+data1<-merge(colobreast, mobem, by="COSMIC_ID")
+library(ggplot2)
+data1$BCL2L11_up<-gsub("1", "Elevated BCL2L11, n=3", data1$BCL2L11_up)
+data1$BCL2L11_up<-gsub("0", "Non-elevated BCL2L11, n=53", data1$BCL2L11_up)
+
+data1$BCL2L11_up<-as.factor(data1$BCL2L11_up)
+data2<-data1
+p <- ggplot(data2, aes(x=data2$BCL2L11_up, y=data2$X24342495, colour= data2$BCL2L11_up, fill=data2$BCL2L11_up)) + theme_bw() +
+  geom_boxplot(alpha = 0.2) +
+  geom_jitter(alpha = 0.75, width = 0.2) +
+  guides(colour = F, fill = F) +
+  theme(panel.grid = element_blank()) + labs(title="",x="", y = "AZD4320 Emax") + theme(text = element_text(size = 18))
+
+p
+```
+
+## Figure S3E
+```{r}
+colobreast<-read.csv("Biomarker_inputs/GDSC010_lib2_MaxE_matrix.csv")
+mobem<-read.csv("Biomarker_inputs/COSMIC_KRAS_binarised_gene_expression_subset.csv")
+data1<-merge(colobreast, mobem, by="COSMIC_ID")
+library(ggplot2)
+data1$BCL2L11_up<-gsub("1", "Elevated BCL2L11, n=3", data1$BCL2L11_up)
+data1$BCL2L11_up<-gsub("0", "Non-elevated BCL2L11, n=53", data1$BCL2L11_up)
+
+data1$BCL2L11_up<-as.factor(data1$BCL2L11_up)
+data2<-data1
+p <- ggplot(data2, aes(x=data2$BCL2L11_up, y=data2$X24342497, colour= data2$BCL2L11_up, fill=data2$BCL2L11_up)) + theme_bw() +
+  geom_boxplot(alpha = 0.2) +
+  geom_jitter(alpha = 0.75, width = 0.2) +
+  guides(colour = F, fill = F) +
+  theme(panel.grid = element_blank()) + labs(title="",x="", y = "Venetoclax Emax") + theme(text = element_text(size = 18))
+
+p
+
+```
+
+## Figure S3F
+```{r}
+colobreast<-read.csv("Biomarker_inputs/GDSC010_lib2_MaxE_matrix.csv")
+mobem<-read.csv("Biomarker_inputs/COSMIC_TP53_binarised_gene_expression_subset.csv")
+data1<-merge(colobreast, mobem, by="COSMIC_ID")
+library(ggplot2)
+data1$BCL2_up<-gsub("1", "Elevated BCL2, n=7", data1$BCL2_up)
+data1$BCL2_up<-gsub("0", "Non-elevated BCL2, n=238", data1$BCL2_up)
+
+data1$BCL2_up<-as.factor(data1$BCL2_up)
+data2<-data1
+p <- ggplot(data2, aes(x=data2$BCL2_up, y=data2$X24342497, colour= data2$BCL2_up, fill=data2$BCL2_up)) + theme_bw() +
+  geom_boxplot(alpha = 0.2) +
+  geom_jitter(alpha = 0.75, width = 0.2) +
+  guides(colour = F, fill = F) +
+  theme(panel.grid = element_blank()) + labs(title="",x="", y = "Venetoclax Emax") + theme(text = element_text(size = 18))
+
+p
+```
+
+
