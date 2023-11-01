@@ -1,0 +1,157 @@
+---
+title: "Creating input files for GDSCTools Biomarker Pipeline"
+date: "01/11/2023"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plyr)
+library(reshape2)
+library(scales)
+library(dplyr)
+library(ggplot2)
+library(superheat)
+#library(rowr)
+set.seed(13)
+```
+
+## Data upload
+Data is available for download from Figshare (link tbc).
+```{r}
+sand1<-read.csv("Input/sandpiper-01_matrix_results.csv")
+sand1$screen<-"Sandpiper_1"
+g7<-read.csv("Input/gdsc-007_matrix_results.csv")
+g7$screen<-"GDSC007"
+g8<-read.csv("Input/gdsc-008_matrix_results.csv")
+g8$screen<-"GDSC008"
+g9<-read.csv("Input/gdsc-009_matrix_results.csv")
+g9$screen<-"GDSC009"
+
+data<-rbind(sand1, g7, g8, g9)
+
+```
+
+##Making matrices of Combo Emax
+```{r}
+#For each metric used for biomarker input, need to create matrices of these inputs for GDSCTools ANOVAs
+sand1_combo_Emax_matrix<-sand1
+sand1_combo_Emax_matrix$Combination<-paste(sand1_combo_Emax_matrix$lib1_ID, sand1_combo_Emax_matrix$lib2_ID, sep="")
+sand1_combo_Emax_matrix<-select(sand1_combo_Emax_matrix, COSMIC_ID, Combination, combo_MaxE)
+#Aggregate and average replicates
+sand1_combo_Emax_matrix<-aggregate(.~COSMIC_ID + Combination, sand1_combo_Emax_matrix, mean)
+sand1_combo_Emax_matrix$COSMIC_ID<-paste0('abc', sand1_combo_Emax_matrix$COSMIC_ID)
+an <- with(sand1_combo_Emax_matrix, sort(unique(c(as.character(COSMIC_ID), as.character(Combination)))))
+M <- array(0, c(length(an), length(an)), list(an, an))
+i <- match(sand1_combo_Emax_matrix$COSMIC_ID, an)
+j <- match(sand1_combo_Emax_matrix$Combination, an)
+M[cbind(i,j)] <- M[cbind(j,i)] <- sand1_combo_Emax_matrix$combo_MaxE
+newM<-M[, -grep("abc", colnames(M))]
+thirdM<-newM[grep("abc", row.names(newM)),]
+row.names(thirdM)<-sub("abc", "", row.names(thirdM))
+write.csv(thirdM, "Biomarker_inputs/Sandpiper1_Combo_MaxE_matrix.csv")
+
+
+g07_combo_Emax_matrix<-g7
+g07_combo_Emax_matrix$Combination<-paste(g07_combo_Emax_matrix$lib1_ID, g07_combo_Emax_matrix$lib2_ID, sep="")
+g07_combo_Emax_matrix<-select(g07_combo_Emax_matrix, COSMIC_ID, Combination, combo_MaxE)
+#Aggregate and average replicates
+g07_combo_Emax_matrix<-aggregate(.~COSMIC_ID + Combination, g07_combo_Emax_matrix, mean)
+g07_combo_Emax_matrix$COSMIC_ID<-paste0('abc', g07_combo_Emax_matrix$COSMIC_ID)
+an <- with(g07_combo_Emax_matrix, sort(unique(c(as.character(COSMIC_ID), as.character(Combination)))))
+M <- array(0, c(length(an), length(an)), list(an, an))
+i <- match(g07_combo_Emax_matrix$COSMIC_ID, an)
+j <- match(g07_combo_Emax_matrix$Combination, an)
+M[cbind(i,j)] <- M[cbind(j,i)] <- g07_combo_Emax_matrix$combo_MaxE
+newM<-M[, -grep("abc", colnames(M))]
+thirdM<-newM[grep("abc", row.names(newM)),]
+row.names(thirdM)<-sub("abc", "", row.names(thirdM))
+write.csv(thirdM, "Biomarker_inputs/GDSC007_Combo_MaxE_matrix.csv")
+
+g08_combo_Emax_matrix<-g8
+g08_combo_Emax_matrix$Combination<-paste(g08_combo_Emax_matrix$lib1_ID, g08_combo_Emax_matrix$lib2_ID, sep="")
+g08_combo_Emax_matrix<-select(g08_combo_Emax_matrix, COSMIC_ID, Combination, combo_MaxE)
+#Aggregate and average replicates
+g08_combo_Emax_matrix<-aggregate(.~COSMIC_ID + Combination, g08_combo_Emax_matrix, mean)
+g08_combo_Emax_matrix$COSMIC_ID<-paste0('abc', g08_combo_Emax_matrix$COSMIC_ID)
+an <- with(g08_combo_Emax_matrix, sort(unique(c(as.character(COSMIC_ID), as.character(Combination)))))
+M <- array(0, c(length(an), length(an)), list(an, an))
+i <- match(g08_combo_Emax_matrix$COSMIC_ID, an)
+j <- match(g08_combo_Emax_matrix$Combination, an)
+M[cbind(i,j)] <- M[cbind(j,i)] <- g08_combo_Emax_matrix$combo_MaxE
+newM<-M[, -grep("abc", colnames(M))]
+thirdM<-newM[grep("abc", row.names(newM)),]
+row.names(thirdM)<-sub("abc", "", row.names(thirdM))
+write.csv(thirdM, "Biomarker_inputs/GDSC008_Combo_MaxE_matrix.csv")
+
+g09_combo_Emax_matrix<-g9
+g09_combo_Emax_matrix$Combination<-paste(g09_combo_Emax_matrix$lib1_ID, g09_combo_Emax_matrix$lib2_ID, sep="")
+g09_combo_Emax_matrix<-select(g09_combo_Emax_matrix, COSMIC_ID, Combination, combo_MaxE)
+#Aggregate and average replicates
+g09_combo_Emax_matrix<-aggregate(.~COSMIC_ID + Combination, g09_combo_Emax_matrix, mean)
+g09_combo_Emax_matrix$COSMIC_ID<-paste0('abc', g09_combo_Emax_matrix$COSMIC_ID)
+an <- with(g09_combo_Emax_matrix, sort(unique(c(as.character(COSMIC_ID), as.character(Combination)))))
+M <- array(0, c(length(an), length(an)), list(an, an))
+i <- match(g09_combo_Emax_matrix$COSMIC_ID, an)
+j <- match(g09_combo_Emax_matrix$Combination, an)
+M[cbind(i,j)] <- M[cbind(j,i)] <- g09_combo_Emax_matrix$combo_MaxE
+newM<-M[, -grep("abc", colnames(M))]
+thirdM<-newM[grep("abc", row.names(newM)),]
+row.names(thirdM)<-sub("abc", "", row.names(thirdM))
+write.csv(thirdM, "Biomarker_inputs/GDSC009_Combo_MaxE_matrix.csv")
+
+
+#Merging all matrices together
+sand1_m<-read.csv("Biomarker_inputs/Sandpiper1_Combo_MaxE_matrix.csv")
+g7_m<-read.csv("Biomarker_inputs/GDSC007_Combo_MaxE_matrix.csv")
+g8_m<-read.csv("Biomarker_inputs/GDSC008_Combo_MaxE_matrix.csv")
+g9_m<-read.csv("Biomarker_inputs/GDSC009_Combo_MaxE_matrix.csv")
+colnames(sand1_m)<-gsub("X", "", colnames(sand1_m))
+colnames(g7_m)<-gsub("X", "", colnames(g7_m))
+colnames(g8_m)<-gsub("X", "", colnames(g8_m))
+colnames(g9_m)<-gsub("X", "", colnames(g9_m))
+
+#adding differential labelling to distinguish between 007 and 008 screen for repeated combination
+colnames(g7_m)<-gsub("24312574", "2431257407", colnames(g7_m))
+colnames(g8_m)<-gsub("24312574", "2431257408", colnames(g8_m))
+
+overall_combo_maxE<-cbind.fill(sand1_m,g7_m,g8_m,g9_m,  fill = NA)
+#Removing repeated name row
+
+overall_combo_maxE<-overall_combo_maxE[,-4]
+overall_combo_maxE<-overall_combo_maxE[,-29]
+overall_combo_maxE<-overall_combo_maxE[,-57]
+colnames(overall_combo_maxE)<-gsub("X", "", colnames(overall_combo_maxE))
+colnames(overall_combo_maxE)[1]<-"COSMIC_ID"
+#write.csv(overall_combo_maxE, "Biomarker_inputs/Sand1-GDSC009_Combo_MaxE_matrix.csv", row.names = FALSE)
+```
+
+
+## Making matrix for GDSC10b half screen
+Data is available for download from Figshare (link tbc).
+```{r}
+## Data upload
+
+g10<-read.csv("Input/gdsc-010_matrix_results.csv")
+g10$screen<-"GDSC010"
+```
+
+```{r}
+#For each metric used for biomarker input, need to create matrices of these inputs for GDSCTools ANOVAs
+g10_combo_Emax_matrix<-g10
+g10_combo_Emax_matrix$Combination<-paste(g10_combo_Emax_matrix$lib1_ID, g10_combo_Emax_matrix$lib2_ID, sep="")
+g10_combo_Emax_matrix<-select(g10_combo_Emax_matrix, COSMIC_ID, Combination, combo_MaxE)
+#Aggregate and average replicates
+g10_combo_Emax_matrix<-aggregate(.~COSMIC_ID + Combination, g10_combo_Emax_matrix, mean)
+g10_combo_Emax_matrix$COSMIC_ID<-paste0('abc', g10_combo_Emax_matrix$COSMIC_ID)
+an <- with(g10_combo_Emax_matrix, sort(unique(c(as.character(COSMIC_ID), as.character(Combination)))))
+M <- array(0, c(length(an), length(an)), list(an, an))
+i <- match(g10_combo_Emax_matrix$COSMIC_ID, an)
+j <- match(g10_combo_Emax_matrix$Combination, an)
+M[cbind(i,j)] <- M[cbind(j,i)] <- g10_combo_Emax_matrix$combo_MaxE
+newM<-M[, -grep("abc", colnames(M))]
+thirdM<-newM[grep("abc", row.names(newM)),]
+row.names(thirdM)<-sub("abc", "", row.names(thirdM))
+#write.csv(thirdM, "Biomarker_inputs/GDSC010_Combo_MaxE_matrix.csv")
+```
+

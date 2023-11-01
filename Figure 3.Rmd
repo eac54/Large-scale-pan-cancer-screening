@@ -1,0 +1,108 @@
+---
+title: "Figure 3"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plyr)
+library(reshape2)
+library(scales)
+library(dplyr)
+library(ggplot2)
+library(superheat)
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(knitr)
+library(lubridate)
+library(tidyr)
+library(RColorBrewer)
+library(reshape2)
+library(knitr)
+library(kableExtra)
+library(scales)
+library(ggpubr)
+library(stats)
+library(ggridges)
+library(hexbin)
+library(ggvenn)
+set.seed(13)
+```
+
+## Figure 3B
+Data file can be downloaded from Figshare (link tbc). Note - the figure in the publication was made using Adobe Illustrator.
+```{r}
+
+sig_biomarkers<-read.csv("Input/Overall_ANOVA_results_significant_large_effect_10_FDR_cutoff.csv")
+
+sig_biomarkers$Input<-gsub("Lib1 Emax", "Single agent Emax", sig_biomarkers$Input)
+sig_biomarkers$Input<-gsub("Lib2 Emax", "Single agent Emax", sig_biomarkers$Input)
+sig_biomarkers<-subset(sig_biomarkers, sig_biomarkers$Input!="Bliss window")
+
+sig_biomarkers$list<-paste(sig_biomarkers$DRUG_ID, sig_biomarkers$FEATURE, sig_biomarkers$Features, sig_biomarkers$Cancer_type, sig_biomarkers$Genotype, sep="_")
+
+bliss_matrix<-subset(sig_biomarkers, sig_biomarkers$Input=="Bliss matrix")
+combo_emax<-subset(sig_biomarkers, sig_biomarkers$Input=="Combo Emax")
+single_agent<-subset(sig_biomarkers, sig_biomarkers$Input=="Single agent Emax")
+
+x <- list(
+  Bliss_matrix = bliss_matrix$list, 
+  Combo_emax = combo_emax$list, 
+  Single_agent = single_agent$list
+  )
+
+
+ggvenn(
+  x, 
+  fill_color = c("#0073C2FF", "#EFC000FF", "#868686FF"),
+  stroke_size = 0.5, set_name_size = 4
+  )
+```
+
+
+## Figure 3C
+Data file can be downloaded from Figshare (link tbc). Note - the figure in the publication contains additional annotation added in Adobe Illustrator.
+
+```{r}
+biomarkers<-read.csv("Input/Overall_ANOVA_results.csv")
+#Counting number of rows = number of tests run
+nrow(biomarkers)
+
+biomarkers$Analysis<-"Non-significant"
+
+#Subsetting significant biomarkers based on p value, FDR and positive and negative Glass deltas
+biomarkers_s<-subset(biomarkers, biomarkers$ANOVA_FEATURE_pval<=0.001)
+biomarkers_s<-subset(biomarkers_s, biomarkers_s$ANOVA_FEATURE_FDR<=10)
+biomarkers_s<-subset(biomarkers_s, biomarkers_s$FEATURE_neg_Glass_delta>=1)
+biomarkers_s<-subset(biomarkers_s, biomarkers_s$FEATURE_pos_Glass_delta>=1)
+'%ni%' <- Negate('%in%')
+
+biomarkers_n <-biomarkers[row.names(biomarkers) %ni% row.names(biomarkers_s),]
+
+#Labelling significant biomarkers by analysis type
+for (i in 1:nrow(biomarkers_s)){
+  if (biomarkers_s$Cancer_type[i]=="All" && biomarkers_s$Genotype[i]=="All"){
+    biomarkers_s$Analysis[i] ="Pan-cancer"
+  }
+  
+  if (biomarkers_s$Cancer_type[i]=="All" && biomarkers_s$Genotype[i]!="All"){
+    biomarkers_s$Analysis[i] ="Pan-cancer molecular basket"
+  }
+  
+  if (biomarkers_s$Cancer_type[i]!="All"){
+    biomarkers_s$Analysis[i] = "By cancer type"
+  }
+}
+
+biomarkers<-rbind(biomarkers_s, biomarkers_n)
+#Sort biomarkers by analysis type
+biomarkers<-biomarkers[order(biomarkers$Analysis),]
+#volcano plot
+p <- ggplot(data =biomarkers, aes(x=FEATURE_delta_MEAN_IC50, y=-log10(ANOVA_FEATURE_pval), col=Analysis)) + geom_point(size=0.5) + theme_light() + xlab("Effect size") + ylab("-log10 ANOVA feature p value") + theme(legend.position="bottom") + (theme(panel.grid = element_blank())) + ylim(0,34) + scale_color_manual(values=c("#df7c73", "#d3d3d3",  "#b49f36", "#5ea74c"))
+
+#pdf(file = "Volcano.pdf")
+p
+#dev.off()
+```
+
