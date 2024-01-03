@@ -31,6 +31,7 @@ library(hexbin)
 set.seed(13)
 ```
 
+Note that figure panels may be in a different order in the published version of the figures. 
 
 ## Data import
 Data files can be downloaded from Figshare (link tbc).
@@ -49,7 +50,7 @@ g10$screen<-"GDSC010"
 data<-rbind(sand1, g7, g8, g9, g10)
 ```
 
-## Figure S1A
+## Figure S1D
 Comparison with GDSC 2 monotherapies - identical protocol. GDSC2 data available for download from the [Genomics of Drug Sensitivity in Cancer website](https://www.cancerrxgene.org/downloads/drug_data?screening_set=GDSC2). 
 ```{r}
 data_S1A_1<-data
@@ -93,7 +94,7 @@ plot(all_S1A$GDSC2_ln_IC50, all_S1A$Sandpiper_ln_IC50, xlab="ln(IC50) in GDSC2",
 ```
 
 
-## Figure S1B
+## Figure S1E
 Comparison with GDSC 1 monotherapies - similar protocol, correlation of 74.30%. GDSC1 data available for download from the [Genomics of Drug Sensitivity in Cancer website](https://www.cancerrxgene.org/downloads/drug_data?screening_set=GDSC1). 
 ```{r}
 #Read in previously published single agent ln_IC50s
@@ -120,7 +121,7 @@ plot(all_S1B$GDSC1_ln_IC50, all_S1B$Sandpiper_ln_IC50, xlab="ln(IC50) in GDSC1",
 #699 cell lines in common, two compounds in common
 ```
 
-## Figure S1C
+## Figure S1F
 
 There are 13 drugs and 346 cell lines in common between the two screens. There is a correlation of 51.3%, where data is available. PRISM data was downloaded from [DepMap Portal Custom Download page](https://depmap.org/portal/download/custom/), with the following options selected: use all cell lines; use all genes/compounds; Drug sensitivity (PRISM Repurposing Primary Screen). 
 ```{r}
@@ -165,7 +166,7 @@ plot(all_prism$PRISM_ln_IC50, all_prism$Sandpiper_ln_IC50, xlab="ln(IC50) in PRI
 
 
 
-## Figure S1H
+## Figure S1K
 ```{r}
 data_1_scatter<-data
 data_2_scatter<-data
@@ -182,34 +183,34 @@ abline(v = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
 cor(data_scatter$Bliss_matrix, data_scatter$HSA_matrix)
 ```
 
-## Figure S1I
+## Figure S1L
 ```{r}
 plot(data_scatter$Bliss_matrix, data_scatter$combo_MaxE, xlab="Bliss excess", ylab="Combo Emax", pch=20)
 abline(v = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
 ```
 
 
-## Figure S1J
+## Figure S1M
 ```{r}
 plot(data_scatter$HSA_matrix, data_scatter$combo_MaxE, xlab="HSA excess", ylab="Combo Emax", pch=20)
 abline(v = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
 
 ```
 
-## Figure S1K
+## Figure S1N
 ```{r}
 plot(data_scatter$Single_agent_Emax, data_scatter$combo_MaxE, xlab="Single agent Emax", ylab="Combo Emax", pch=20)
 
 
 ```
 
-## Figure S1L
+## Figure S1O
 ```{r}
 plot(data_scatter$Single_agent_Emax, data_scatter$Bliss_matrix, xlab="Single agent Emax", ylab="Bliss excess", pch=20)
 abline(h = c(0, 0.1), col=c("gray", "red"), lty=c(1,2), lwd=c(1, 3))
 ```
 
-## Figure S1M
+## Figure S1A
 ```{r}
 a<-read.csv("Input/plate_qc_Sandpiper-01_13May22.csv")
 b<-read.csv("Input/plate_qc_Sandpiper-02_13May22.csv")
@@ -227,7 +228,7 @@ median(data_S1L$CV_NC1)
 range(data_S1L$CV_NC1)
 ```
 
-## Figure S1N
+## Figure S1B
 ```{r}
 data_S1L_1<-data_S1L$Z_NC1_PC1
 data_S1L_2<-data_S1L$Z_NC1_PC2
@@ -258,7 +259,7 @@ max(pos$Value) - min(pos$Value)
 ```
 
 
-##Figure S1O
+##Figure S1C
 ```{r}
 library(ggplot2)
 library(dplyr)
